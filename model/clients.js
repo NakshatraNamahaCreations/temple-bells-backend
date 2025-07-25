@@ -4,7 +4,7 @@ const ClientSchema = new mongoose.Schema(
   {
     clientName: {
       type: String,
-      require: true,
+      required: true,
     },
     executives: [
       {

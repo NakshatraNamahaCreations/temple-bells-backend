@@ -37,15 +37,16 @@ class Clients {
       // }
 
       const phoneRegex = /^[6-9]\d{9}$/; // Starts with 6–9 and has 10 digits
-      if (!phoneRegex.test(phoneNumber)) {
-        return res.status(400).json({ error: "Invalid phone number" });
-      }
+      // only check this phoneumber is not ''
+      // if (!phoneRegex.test(phoneNumber)) {
+      //   return res.status(400).json({ error: "Invalid phone number" });
+      // }
 
-      executives.forEach((exec) => {
-        if (!validatePhone(exec.phoneNumber)) {
-          return res.status(400).json({ error: "Invalid phone number" });
-        }
-      });
+      // executives.forEach((exec) => {
+      //   if (!validatePhone(exec.phoneNumber)) {
+      //     return res.status(400).json({ error: "Invalid phone number" });
+      //   }
+      // });
 
       let parsedExecutives = [];
       if (executives) {
@@ -61,12 +62,14 @@ class Clients {
         // password,
         phoneNumber,
         address,
-        activeStatus,
+        // activeStatus,
         executives: parsedExecutives, // Store executives array
       });
 
+      console.log(`before created client: `, newClient);
       // Save the client to the database
       const savedClient = await newClient.save();
+      console.log(`created client: `, newClient);
 
       // Invalidate cache after adding a new client (if caching is used)
       if (cache) cache.del("allclients");
