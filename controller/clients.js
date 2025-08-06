@@ -4,32 +4,22 @@ const cache = new NodeCache({ stdTTL: 100, checkperiod: 120 });
 const { parse } = require('date-fns');
 const Order = require("../model/order");
 const { default: mongoose } = require("mongoose");
+const AdminModel = require("../model/Auth/adminLogin");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const User = require("../model/user");
+const _ = require('lodash');
 
 class Clients {
   async createClients(req, res) {
-    let {
-      clientName,
-      email,
-      phoneNumber,
-      // password,
-      address,
-      activeStatus,
-      executives,
-    } = req.body;
+    console.log(`req.body: `, req.body);
+    let { clientName, email, phoneNumber, address, activeStatus, executives, clientPassword } = req.body;
 
-    console.log({
-      clientName,
-      email,
-      phoneNumber,
-      // password,
-      address,
-      activeStatus,
-      executives
-    })
+    console.log({ clientName, email, phoneNumber, address, activeStatus, executives })
 
     try {
       // Check if client with the same phone number already exists
-      // console.log("phone: ", phoneNumber)
+      console.log("Client phoneNumber: ", phoneNumber)
       // const existingClient = await Clientmodel.findOne({ phoneNumber });
       // console.log("existingClient: ", existingClient)
       // if (existingClient) {
@@ -37,42 +27,70 @@ class Clients {
       // }
 
       const phoneRegex = /^[6-9]\d{9}$/; // Starts with 6–9 and has 10 digits
-      // only check this phoneumber is not ''
-      // if (!phoneRegex.test(phoneNumber)) {
-      //   return res.status(400).json({ error: "Invalid phone number" });
-      // }
+      if (!phoneRegex.test(phoneNumber)) {
+        return res.status(400).json({ error: "Invalid Client phone number" });
+      }
 
       // executives.forEach((exec) => {
-      //   if (!validatePhone(exec.phoneNumber)) {
-      //     return res.status(400).json({ error: "Invalid phone number" });
+      //   console.log(`exec: ${exec.phoneNumber}`);
+      //   if (!phoneRegex.test(exec.phoneNumber)) {
+      //     return res.status(400).json({ error: "Invalid Executive phone number" });
       //   }
       // });
 
-      let parsedExecutives = [];
-      if (executives) {
-        parsedExecutives = Array.isArray(executives)
-          ? executives
-          : JSON.parse(executives);
+      // let parsedExecutives = [];
+      // if (executives) {
+      //   parsedExecutives = Array.isArray(executives)
+      //     ? executives
+      //     : JSON.parse(executives);
+      // }
+
+      const existingUser = await User.findOne({ phoneNumber });
+      if (existingUser) {
+        // if (!existingUser.clientDetails) {
+        //   existingUser.clientDetails = newClient._id;
+        //   await existingUser.save();
+        //   const savedClient = await newClient.save();
+        //   return res.json({ 
+        //     success: "Client added successfully",
+        //     client: savedClient,
+        //     message: "User already existed but was updated with client details"
+        //   });
+        // }
+        return res.status(400).json({ error: "Phone number already exists" });
       }
 
-      // Create a new client
-      const newClient = new Clientmodel({
-        clientName,
-        email,
-        // password,
+      // Validate password length
+      if (clientPassword.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters long" });
+      }
+
+      const hashedPassword = await bcrypt.hash(clientPassword, 10)
+
+      const newClient = new User({
         phoneNumber,
+        password: hashedPassword,
+        name: clientName,
+        email,
         address,
-        // activeStatus,
-        executives: parsedExecutives, // Store executives array
+        activeStatus,
+        role: "client",
+        permissions: {
+          addNewEnquiry: true,
+          executiveManagement: true,
+          viewOrders: true,
+        }
       });
 
-      console.log(`before created client: `, newClient);
-      // Save the client to the database
       const savedClient = await newClient.save();
-      console.log(`created client: `, newClient);
 
-      // Invalidate cache after adding a new client (if caching is used)
-      if (cache) cache.del("allclients");
+      // const hashedPassword = await bcrypt.hash(clientPassword, 10);
+      // const newUser = await User.create({
+      //   phoneNumber,
+      //   password: hashedPassword,
+      //   role: "client",
+      //   clientDetails: savedClient._id,
+      // });      
 
       return res.json({ success: "Client added successfully", client: savedClient });
     } catch (error) {
@@ -80,6 +98,7 @@ class Clients {
       return res.status(500).json({ error: "Failed to add Client" });
     }
   }
+
   async clientlogin(req, res) {
     let { companyName, phoneNumber } = req.body;
 
@@ -92,7 +111,7 @@ class Clients {
       }
 
       // Find the client by company name
-      const client = await Clientmodel.findOne({ clientName: companyName });
+      const client = await User.findOne({ clientName: companyName });
 
       if (!client) {
         return res.status(404).json({
@@ -112,14 +131,14 @@ class Clients {
       }
 
       // Update the active status for the client
-      await Clientmodel.findOneAndUpdate(
+      await User.findOneAndUpdate(
         { clientName: companyName },
         { activeStatus: "Online" },
         { new: true }
       );
 
       // Update the active status for the specific executive
-      await Clientmodel.updateOne(
+      await User.updateOne(
         { clientName: companyName, "executives._id": executive._id },
         { $set: { "executives.$.activeStatus": "Online" } }
       );
@@ -148,43 +167,50 @@ class Clients {
   }
 
   async editClients(req, res) {
-    const ClientId = req.params.id;
-    const {
-      clientName,
-      email,
-      phoneNumber,
-      address,
-      executives, // Updated to include executives
-    } = req.body;
+    const clientId = req.params.id;
+    console.log(`req.body: `, req.body);
+    const { name, email, phoneNumber, address, password } = req.body;
+    const clientName = name
 
     try {
-      // Find the client by ID
-      const findClients = await Clientmodel.findOne({ _id: ClientId });
-      if (!findClients) {
+      const findClient = await User.findOne({ _id: clientId });
+      if (!findClient) {
         return res.status(404).json({ error: "No data found" });
       }
 
-      // Update client fields conditionally
-      findClients.clientName = clientName || findClients.clientName;
-      findClients.email = email || findClients.email;
-      findClients.phoneNumber = phoneNumber || findClients.phoneNumber;
+      if (phoneNumber) {
+        const phoneRegex = /^[6-9]\d{9}$/; // Starts with 6–9 and has 10 digits
+        if (!phoneRegex.test(phoneNumber)) {
+          return res.status(400).json({ error: "Invalid Client phone number" });
+        }
+        if (findClient.phoneNumber !== phoneNumber) {
+          const existingUser = await User.findOne({ phoneNumber });
+          if (existingUser) {
+            return res.status(400).json({ error: "Phone number already exists" });
+          }
+        }
 
-      findClients.address = address || findClients.address;
-
-      // Parse and update executives if provided
-      if (executives) {
-        const parsedExecutives = Array.isArray(executives)
-          ? executives
-          : JSON.parse(executives);
-
-        findClients.executives = parsedExecutives;
+        findClient.phoneNumber = phoneNumber; // Update phone number
       }
 
-      // Save updated client
-      const updatedData = await findClients.save();
 
-      // Invalidate cache after updating the client
-      if (cache) cache.del("allclients");
+      if (password) {
+        if (password.length < 6) {
+          return res.status(400).json({ error: "Password must be at least 6 characters long" });
+        }
+        // Hash the password and update it if provided
+        const hashedPassword = await bcrypt.hash(password, 10);
+        findClient.password = hashedPassword;
+      }
+
+
+      // Update client fields conditionally
+      findClient.name = clientName || findClient.clientName;
+      findClient.email = email || findClient.email;
+      findClient.address = address || findClient.address;
+
+      // Save updated client
+      const updatedData = await findClient.save();
 
       return res.json({ success: "Client updated successfully", data: updatedData });
     } catch (error) {
@@ -239,24 +265,88 @@ class Clients {
   // }
 
   async getallClients(req, res) {
-    let cachedSubcategories = cache.get("allclients");
-    if (cachedSubcategories) {
-      return res.json({ Client: cachedSubcategories });
-    } else {
-      try {
-        let Client = await Clientmodel.find({}).sort({ createdAt: -1 });
-        if (Client) {
-          cache.set("allclients", Client);
-          console.log(Client);
-          return res.json({ Client: Client });
-        } else {
-          return res.status(404).json({ error: "No subcategories found" });
-        }
-      } catch (error) {
-        return res
-          .status(500)
-          .json({ error: "Failed to retrieve subcategories" });
+    try {
+      const clients = await User.find({ role: "client" })
+        .populate('executives')
+        .sort({ createdAt: -1 })
+        .lean();
+      if (clients && clients.length > 0) {
+        cache.set("allclients", clients);
+        return res.json({ Client: clients });
+      } else {
+        return res.status(404).json({ error: "No clients found" });
       }
+    } catch (error) {
+      console.error("Error getting clients:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to retrieve clients" });
+    }
+
+  }
+
+  async getClientsGrandTotal(req, res) {
+    console.log("inside getClientsGrandTotal");
+    const { clientIds, startDate, endDate } = req.body;
+    console.log("Selected Clients:", clientIds, "startDate: ", startDate, "endDate: ", endDate);
+
+    try {
+      // const startdate = parse(startDate, "dd-MM-yyyy", new Date());
+      // const enddate = parse(endDate, "dd-MM-yyyy", new Date());
+      // const startdate = startDate
+      // const enddate = endDate
+      // const clientMap=clientIds.map(id => new mongoose.Types.ObjectId(id)) 
+      // console.log("map: ", clientMap)
+
+      const order = await Order.findOne({ clientId: clientIds[0] }).populate('clientId');
+      console.log("order: ", order.clientId);
+
+
+      const result = await Order.aggregate([
+        {
+          $match: {
+            clientId: { $in: clientIds.map(id => new mongoose.Types.ObjectId(id)) },
+            slots: {
+              $elemMatch: {
+                quoteDateObj: { $gte: new Date(startDate) },
+                endDateObj: { $lte: new Date(endDate) }
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$clientId",
+            totalGrandTotal: { $sum: "$GrandTotal" },
+            totalRoundOff: { $sum: "$roundOff" }
+          }
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "clientId",
+            foreignField: "id",
+            as: "clientInfo"
+          }
+        },
+        // { $unwind: "$clientInfo" },
+        // {
+        //   $project: {
+        //     clientName: "$clientInfo.name",
+        //     totalGrandTotal: 1,
+        //     totalRoundOff: 1
+        //   }
+        // }
+      ]);
+
+
+
+      console.log("result: ", result)
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error fetching and processing orders:", error);
+      return res.status(500).json({ error: "Failed to fetch client totals" });
     }
   }
 
@@ -273,10 +363,14 @@ class Clients {
       // const clientMap=clientIds.map(id => new mongoose.Types.ObjectId(id)) 
       // console.log("map: ", clientMap)
 
+      const order = await Order.findOne({ clientId: clientIds[0] }).populate('clientId');
+      console.log("order: ", order.clientId);
+
+
       const result = await Order.aggregate([
         {
           $match: {
-            ClientId: { $in: clientIds.map(id => new mongoose.Types.ObjectId(id)) },
+            clientId: { $in: clientIds.map(id => new mongoose.Types.ObjectId(id)) },
             slots: {
               $elemMatch: {
                 quoteDateObj: { $gte: new Date(startDate) },
@@ -287,25 +381,27 @@ class Clients {
         },
         {
           $group: {
-            _id: "$ClientId",
-            totalGrandTotal: { $sum: "$GrandTotal" }
+            _id: "$clientId",
+            totalGrandTotal: { $sum: "$GrandTotal" },
+            totalRoundOff: { $sum: "$roundOff" }
           }
         },
         {
           $lookup: {
-            from: "clients",
-            localField: "_id",
-            foreignField: "_id",
+            from: "users",
+            localField: "clientId",
+            foreignField: "id",
             as: "clientInfo"
           }
         },
-        { $unwind: "$clientInfo" },
-        {
-          $project: {
-            clientName: "$clientInfo.ClientName",
-            totalGrandTotal: 1
-          }
-        }
+        // { $unwind: "$clientInfo" },
+        // {
+        //   $project: {
+        //     clientName: "$clientInfo.name",
+        //     totalGrandTotal: 1,
+        //     totalRoundOff: 1
+        //   }
+        // }
       ]);
 
 
@@ -349,24 +445,138 @@ class Clients {
     }
   }
 
+  /*
+  must delte associated execs too
+  */
   async deleteClients(req, res) {
-    let id = req.params.id;
-    console.log("ID received in request:", id);
+    const { superAdminId } = req;
+    console.log("ID received in request:", superAdminId);
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-      let data = await Clientmodel.deleteOne({ _id: id });
-      if (data.deletedCount > 0) {
-        // Invalidate cache after deleting a Client
-        cache.del("allclients");
-        return res.json({ success: "Successfully deleted" });
-      } else {
+      // First get the client document
+      const client = await User.findById(superAdminId, null, { session });
+      if (!client) {
+        await session.abortTransaction();
         return res.status(404).json({ error: "Client not found" });
       }
+
+      // Delete all executives associated with this client
+      if (client.executives && client.executives.length > 0) {
+        await User.deleteMany({ _id: { $in: client.executives } }, { session });
+      }
+
+      // Delete the client itself
+      await User.deleteOne({ _id: superAdminId }, { session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+
+      return res.json({ success: "Successfully deleted client and all associated executives" });
     } catch (error) {
-      return res.status(500).json({ error: "Failed to delete Client" });
+      await session.abortTransaction();
+      console.error("Error deleting client:", error);
+      return res.status(500).json({ error: "Failed to delete client and executives" });
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async getCurrentClientName(req, res) {
+    console.log(`req.query: `, req.query);
+    const { clientId, executiveId, userRole } = req.query;
+    console.log({ clientId, executiveId, userRole });
+    try {
+      const client = await User.find({ _id: clientId })
+        .populate('executives')
+        .select('name address ')
+        .lean()
+      console.log("Client: ", client)
+
+
+      if (!client) {
+        return res.json({ error: "Client not found" });
+      }
+
+
+      if (userRole === 'client') {
+        return res.json({ ClientNames: client, userRole });
+      }
+
+      // const filteredClient = [{
+      //   ...client[0],
+      //   executives: client[0].executives.filter((executive) => executive._id.toString() === executiveId)
+      // }];
+
+      client[0].executives = client[0].executives.filter((executive) => executive._id.toString() === executiveId);
+
+      console.log("Filtered Client: ", client);
+      return res.json({ ClientNames: client, userRole });
+    } catch (error) {
+      return res
+        .status(500)
+        .json({ error: "Failed to retrieve subcategories" });
+    }
+  }
+
+  async getCurrentClientNameToken(req, res) {
+    const { clientId, executiveId, userRole } = req;
+    console.log({ clientId, executiveId, userRole });
+    try {
+      const client = await User.find({ _id: clientId })
+        .populate('executives')
+        .select('name address ')
+        .lean()
+      console.log("Client: ", client)
+
+
+      if (!client) {
+        return res.json({ error: "Client not found" });
+      }
+
+
+      if (userRole === 'client') {
+        return res.json({ ClientNames: client, userRole });
+      }
+
+      // const filteredClient = [{
+      //   ...client[0],
+      //   executives: client[0].executives.filter((executive) => executive._id.toString() === executiveId)
+      // }];
+
+      client[0].executives = client[0].executives.filter((executive) => executive._id.toString() === executiveId);
+
+      console.log("Filtered Client: ", client);
+      return res.json({ ClientNames: client, userRole });
+    } catch (error) {
+      return res
+        .status(500)
+        .json({ error: "Failed to retrieve subcategories" });
     }
   }
 }
 
 const ClientController = new Clients();
 module.exports = ClientController;
+
+
+
+// if (userRole === 'client') {
+//   const client = await User.find({ _id: clientId })
+//     // .populate('executives')
+//     .select("-executives")
+//     .lean()
+//   console.log("Client: ", client)
+//   if (client) {
+//     return res.json({ ClientNames: client });
+//   }
+// } else if (userRole === 'executive') {
+//   const client = await User.find({
+//     _id: executiveId,
+//     role: 'executive'
+//   })
+//     .populate('clientId', 'name clientName email address')
+//     .lean()
+//   console.log("Client: ", client)

@@ -6,7 +6,4 @@
 temp/
 tests/
 dist/
-
-
-
-.vscode/
+scripts/
