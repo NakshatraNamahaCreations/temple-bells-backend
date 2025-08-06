@@ -39,6 +39,7 @@ class ProductManagement {
         ProductImg1,
         ProductImg2,
         ProductImg3,
+        Advanceamount,
         // ProductSKU,
       } = req.body;
       let file = req.files[0]?.filename;
@@ -68,9 +69,11 @@ class ProductManagement {
         ProductImg1,
         ProductImg2,
         ProductImg3,
+        Advanceamount,
         // ProductSKU,
-      })
-      console.log(ProductName,
+      });
+      console.log(
+        ProductName,
         ProductCategory,
         ProductSubcategory,
         ProductDesc,
@@ -87,22 +90,12 @@ class ProductManagement {
         Material,
         ProductSize,
         Color,
-        seater, file, "etst")
+        Advanceamount,
+        seater,
+        file,
+        "etst"
+      );
       const newProductStock = qty - (repairCount ?? 0);
-      // const product = await ProductManagementModel.findOne()
-      //   .sort({ ProductSKU: -1 })
-      //   .exec();
-      // const lastProductSku = product ? product.ProductSKU : "SKU001";
-
-      // console.log("lastProductSku", lastProductSku);
-      // Extract the numeric part and increment it
-      // const numericPart = parseInt(lastProductSku.slice(3), 10) + 1;
-      // console.log("numericPart", numericPart);
-
-      // Pad the number with leading zeros to ensure it stays 3 digits
-      // const newProductSKU = "SKU" + numericPart.toString().padStart(3, "0");
-
-      // console.log(newProductSKU, "newProductSKU"); // Outputs SKU002, SKU003, etc.
 
       let add = new ProductManagementModel({
         ProductName,
@@ -128,15 +121,15 @@ class ProductManagement {
         ProductImg2: file2,
         ProductImg3: file3,
         activeStatus,
+        Advanceamount,
         // ProductSKU: newProductSKU,
       });
-      console.log()
+      console.log();
       add.save().then((data) => {
         return res
           .status(200)
           .json({ success: "User added successfully", data });
       });
-
     } catch (error) {
       console.log("error: ", error);
       return res.status(500).json({ error: "something went wrong" });
@@ -233,6 +226,7 @@ class ProductManagement {
       ProductImg2,
       ProductImg3,
       minqty, // add if needed
+      Advanceamount,
     } = req.body;
     let file = req.files && req.files[0]?.filename;
 
@@ -257,6 +251,7 @@ class ProductManagement {
       ProductImg2,
       ProductImg3,
       minqty,
+      Advanceamount,
     };
     if (file) {
       updateObj.ProductIcon = file;
@@ -269,11 +264,10 @@ class ProductManagement {
       }
 
       // basic idea: total is alaways "productstock + repair"
-      let newProductStock
+      let newProductStock;
       let newRepairCount = Number(repairCount) ?? 0;
 
       newProductStock = qty - newRepairCount;
-
 
       // ✅ Handle single image update
       const updatedFields = {
@@ -292,6 +286,7 @@ class ProductManagement {
         ProductSize: ProductSize ?? findProduct.ProductSize,
         Color: Color ?? findProduct.Color,
         seater: seater ?? findProduct.seater,
+        Advanceamount: Advanceamount ?? findProduct.Advanceamount,
 
         // ✅ Keep the old image if no new image is uploaded
         ProductIcon: req.file ? req.file.filename : findProduct.ProductIcon,
@@ -343,13 +338,11 @@ class ProductManagement {
     const session = await mongoose.startSession();
     session.startTransaction();
 
-
     if (!productId || repairCount == null || lostCount == null) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     try {
-
       const updatedProduct = await ProductManagementModel.findByIdAndUpdate(
         { _id: productId },
         { repairCount, lostCount, repairDescription },
@@ -360,13 +353,16 @@ class ProductManagement {
         return res.status(404).json({ error: "Product not found" });
       }
 
-      updatedProduct.ProductStock = Number(updatedProduct.qty) - (Number(updatedProduct.repairCount) + Number(updatedProduct.lostCount));
+      updatedProduct.ProductStock =
+        Number(updatedProduct.qty) -
+        (Number(updatedProduct.repairCount) + Number(updatedProduct.lostCount));
 
-      const updatedProductStock = await ProductManagementModel.findByIdAndUpdate(
-        { _id: productId },
-        { ProductStock: updatedProduct.ProductStock },
-        { new: true }
-      ).session(session);
+      const updatedProductStock =
+        await ProductManagementModel.findByIdAndUpdate(
+          { _id: productId },
+          { ProductStock: updatedProduct.ProductStock },
+          { new: true }
+        ).session(session);
 
       await session.commitTransaction();
 
@@ -374,173 +370,13 @@ class ProductManagement {
         message: "Product updated successfully",
         data: updatedProduct,
       });
-    }
-    catch (error) {
+    } catch (error) {
       await session.abortTransaction();
       return res.status(500).json({ error: "Failed to update product" });
     } finally {
       session.endSession();
     }
   }
-
-  // async updateProducts(req, res) {
-  //   try {
-  //     const ProductId = req.params.id;
-  //     const {
-  //       ProductName,
-  //       ProductCategory,
-  //       ProductSubcategory,
-  //       ProductDesc,
-  //       ProductFeature,
-  //       ProductPrice,
-  //       offerPrice,
-  //       ProductGst,
-  //       Productdetails,
-  //       qty,
-  //       maxGty,
-  //       ProductStock,
-  //       activeStatus,
-  //       Material,
-  //       ProductSize,
-  //       Color,
-  //       seater,
-  //       ProductImg1,
-  //       ProductImg2,
-  //       ProductImg3,
-  //     } = req.body; // Changed from req.params to req.body assuming form-data or JSON body
-
-  //     let file = req.files && req.files[0]?.filename; // Check if req.files exists first
-  //     let file1 = req.files && req.files[1]?.filename;
-  //     let file2 = req.files && req.files[2]?.filename;
-  //     let file3 = req.files && req.files[3]?.filename;
-  //     const findProduct = await ProductManagementModel.findOne({
-  //       _id: ProductId,
-  //     });
-  //     if (!findProduct) {
-  //       return res.status(404).json({ error: "No such record found" });
-  //     }
-
-  //     // Update product fields
-  //     findProduct.ProductName = ProductName || findProduct.ProductName;
-  //     findProduct.ProductCategory =
-  //       ProductCategory || findProduct.ProductCategory;
-  //     findProduct.ProductSubcategory =
-  //       ProductSubcategory || findProduct.ProductSubcategory;
-  //     findProduct.ProductFeature = ProductFeature || findProduct.ProductFeature;
-  //     findProduct.ProductPrice = ProductPrice || findProduct.ProductPrice;
-  //     findProduct.offerPrice = offerPrice || findProduct.offerPrice;
-  //     findProduct.Productdetails = Productdetails || findProduct.Productdetails;
-  //     findProduct.qty = qty || findProduct.qty;
-  //     findProduct.ProductDesc = ProductDesc || findProduct.ProductDesc;
-  //     findProduct.ProductGst = ProductGst || findProduct.ProductGst;
-  //     findProduct.maxGty = maxGty || findProduct.maxGty;
-  //     findProduct.activeStatus = activeStatus || findProduct.activeStatus;
-  //     findProduct.ProductStock = ProductStock || findProduct.ProductStock;
-  //     findProduct.Material = Material || findProduct.Material;
-  //     findProduct.ProductSize = ProductSize || findProduct.ProductSize;
-  //     findProduct.Color = Color || findProduct.Color;
-  //     findProduct.seater = seater || findProduct.seater;
-  //     findProduct.ProductImg1 = ProductImg1 || findProduct.ProductImg1;
-  //     findProduct.ProductImg2 = ProductImg2 || findProduct.ProductImg2;
-  //     findProduct.ProductImg3 = ProductImg3 || findProduct.ProductImg3;
-  //     if (file) {
-  //       findProduct.ProductIcon = file;
-  //     }
-  //     if (file) {
-  //       findProduct.ProductIcon = file;
-  //     }
-
-  //     console.log("findProduct", findProduct);
-  //     const updatedProduct = await findProduct.save();
-
-  //     return res.json({
-  //       message: "Updated successfully",
-  //       data: updatedProduct,
-  //     });
-  //   } catch (error) {
-  //     console.error("Error updating product:", error);
-  //     return res.status(500).json({ error: "Unable to update the product" });
-  //   }
-  // }
-  // async updateProducts(req, res) {
-  //   try {
-  //     const ProductId = req.params.id;
-  //     const {
-  //       ProductName,
-  //       ProductCategory,
-  //       ProductSubcategory,
-  //       ProductDesc,
-  //       ProductFeature,
-  //       ProductPrice,
-  //       offerPrice,
-  //       ProductGst,
-  //       Productdetails,
-  //       qty,
-  //       maxGty,
-  //       ProductStock,
-  //       activeStatus,
-  //       Material,
-  //       ProductSize,
-  //       Color,
-  //       seater,
-  //     } = req.body;
-
-  //     const files = req.files || [];
-  //     const uploadedFiles = {
-  //       ProductIcon: files[0]?.filename,
-  //       ProductImg1: files[1]?.filename,
-  //       ProductImg2: files[2]?.filename,
-  //       ProductImg3: files[3]?.filename,
-  //     };
-
-  //     // Find the product by ID
-  //     const findProduct = await ProductManagementModel.findById(ProductId);
-  //     if (!findProduct) {
-  //       return res.status(404).json({ error: "No such record found" });
-  //     }
-
-  //     // Update product fields conditionally
-  //     const updatedFields = {
-  //       ProductName: ProductName || findProduct.ProductName,
-  //       ProductCategory: ProductCategory || findProduct.ProductCategory,
-  //       ProductSubcategory: ProductSubcategory || findProduct.ProductSubcategory,
-  //       ProductFeature: ProductFeature || findProduct.ProductFeature,
-  //       ProductPrice: ProductPrice || findProduct.ProductPrice,
-  //       offerPrice: offerPrice || findProduct.offerPrice,
-  //       Productdetails: Productdetails || findProduct.Productdetails,
-  //       qty: qty || findProduct.qty,
-  //       maxGty: maxGty || findProduct.maxGty,
-  //       ProductStock: ProductStock || findProduct.ProductStock,
-  //       ProductDesc: ProductDesc || findProduct.ProductDesc,
-  //       ProductGst: ProductGst || findProduct.ProductGst,
-  //       activeStatus: activeStatus || findProduct.activeStatus,
-  //       Material: Material || findProduct.Material,
-  //       ProductSize: ProductSize || findProduct.ProductSize,
-  //       Color: Color || findProduct.Color,
-  //       seater: seater || findProduct.seater,
-  //       ProductIcon: uploadedFiles.ProductIcon || findProduct.ProductIcon,
-  //       ProductImg1: uploadedFiles.ProductImg1 || findProduct.ProductImg1,
-  //       ProductImg2: uploadedFiles.ProductImg2 || findProduct.ProductImg2,
-  //       ProductImg3: uploadedFiles.ProductImg3 || findProduct.ProductImg3,
-  //     };
-
-  //     // Update product in the database
-  //     const updatedProduct = await ProductManagementModel.findByIdAndUpdate(
-  //       ProductId,
-  //       { $set: updatedFields },
-  //       { new: true }
-  //     );
-  //     console.log(updatedProduct)
-  //     return res.json({
-  //       message: "Product updated successfully",
-  //       data: updatedProduct,
-  //     });
-
-  //   } catch (error) {
-  //     console.error("Error updating product:", error);
-  //     return res.status(500).json({ error: "Unable to update the product" });
-  //   }
-  // }
 
   async updateProducts(req, res) {
     try {
@@ -560,6 +396,7 @@ class ProductManagement {
         ProductSize,
         Color,
         seater,
+        Advanceamount,
       } = req.body;
 
       // Find the existing product
@@ -585,7 +422,6 @@ class ProductManagement {
         newRepair = repair;
       }
 
-
       // ✅ Handle single image update
       const updatedFields = {
         ProductName: ProductName ?? findProduct.ProductName,
@@ -603,6 +439,7 @@ class ProductManagement {
         ProductSize: ProductSize ?? findProduct.ProductSize,
         Color: Color ?? findProduct.Color,
         seater: seater ?? findProduct.seater,
+        Advanceamount: Advanceamount ?? findProduct.Advanceamount,
 
         // ✅ Keep the old image if no new image is uploaded
         ProductIcon: req.file ? req.file.filename : findProduct.ProductIcon,
@@ -721,7 +558,6 @@ class ProductManagement {
       } else {
         return res.status(404).json({ message: "Product not found." });
       }
-
     } catch (error) {
       console.error("Error in getProductById:", error);
       return res.status(500).json({

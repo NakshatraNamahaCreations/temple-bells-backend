@@ -213,8 +213,8 @@ class Quotations {
         .session(session);
       const nextQuoteId = latestQuotation
         ? `QT${(parseInt(latestQuotation.quoteId.replace("QT", ""), 10) + 1)
-          .toString()
-          .padStart(4, "0")}`
+            .toString()
+            .padStart(4, "0")}`
         : "QT0001";
 
       let updatedExecutiveId = executiveId;
@@ -252,7 +252,7 @@ class Quotations {
         slots,
       });
 
-      console.log()
+      console.log();
 
       const savedQuotation = await newQuotation.save({ session });
 
@@ -262,17 +262,17 @@ class Quotations {
 
         for (const product of Products) {
           const { productId, quantity, StockAvailable } = product;
-          console.log(productId, quantity, StockAvailable, "HHH")
+          console.log(productId, quantity, StockAvailable, "HHH");
 
           const start = parseDate(quoteDate.trim());
           const end = parseDate(endDate.trim());
           // Step 1: Fetch all inventory records for the given productId(s)
           const inventory = await InventoryModel.find({
-            productId
+            productId,
           });
 
           // Step 2: Check for overlapping date ranges
-          const overlappingInventory = inventory.filter(item => {
+          const overlappingInventory = inventory.filter((item) => {
             // Convert startdate and enddate from strings (e.g., 'DD-MM-YYYY') to Date objects
             const inventoryStartDate = parseDate(item.startdate);
             const inventoryEndDate = parseDate(item.enddate);
@@ -300,12 +300,12 @@ class Quotations {
             );
           }
 
-          console.log("enquiryObjectId: ", enquiryObjectId)
+          console.log("enquiryObjectId: ", enquiryObjectId);
 
           // check this out later
           const updatedEnquiry = await Enquirymodel.findOneAndUpdate(
             { _id: new mongoose.Types.ObjectId(enquiryObjectId) },
-            { status: 'sent' },
+            { status: "sent" },
             { new: true }
           ).session(session);
 
@@ -313,7 +313,6 @@ class Quotations {
           //   console.log('Enquiry not found');
           //   return null;
           // }
-
 
           // // Update or create inventory for the current slot
           // const existingInventory = await InventoryModel.findOne({
@@ -521,74 +520,80 @@ class Quotations {
       const quoteData = await Quotationmodel.find({}).sort({ _id: -1 }).lean();
 
       // Loop through each quotation to enrich slots with inventory data
-      const enrichedQuotations = await Promise.all(quoteData.map(async (quote) => {
-        const enrichedSlots = await Promise.all(quote.slots.map(async (slot) => {
-          const enrichedProducts = await Promise.all(slot.Products.map(async (product) => {
-            // Fetch product details including ProductIcon
-            const productDetails = await ProductModel.findOne({ _id: product.productId }).lean();
+      const enrichedQuotations = await Promise.all(
+        quoteData.map(async (quote) => {
+          const enrichedSlots = await Promise.all(
+            quote.slots.map(async (slot) => {
+              const enrichedProducts = await Promise.all(
+                slot.Products.map(async (product) => {
+                  // Fetch product details including ProductIcon
+                  const productDetails = await ProductModel.findOne({
+                    _id: product.productId,
+                  }).lean();
 
-            // Fetch overlapping inventory for the product, slot, and date range
-            const overlappingReservations = await InventoryModel.find({
-              productId: product.productId,
-              $or: [
-                {
-                  startdate: { $lte: quote.endDate },
-                  enddate: { $gte: quote.quoteDate },
-                },
-              ],
-              slot: slot.slotName,
-            });
+                  // Fetch overlapping inventory for the product, slot, and date range
+                  const overlappingReservations = await InventoryModel.find({
+                    productId: product.productId,
+                    $or: [
+                      {
+                        startdate: { $lte: quote.endDate },
+                        enddate: { $gte: quote.quoteDate },
+                      },
+                    ],
+                    slot: slot.slotName,
+                  });
 
-            // Calculate total reserved inventory
-            const totalReservedQty = overlappingReservations.reduce(
-              (sum, reservation) => sum + reservation.reservedQty,
-              0
-            );
+                  // Calculate total reserved inventory
+                  const totalReservedQty = overlappingReservations.reduce(
+                    (sum, reservation) => sum + reservation.reservedQty,
+                    0
+                  );
 
-            const availableStock =
-              product.StockAvailable - totalReservedQty;
+                  const availableStock =
+                    product.StockAvailable - totalReservedQty;
 
-            // Determine status
-            let status = "Not Available";
-            if (availableStock > 0) {
-              status = "Available";
-            } else if (totalReservedQty >= product.StockAvailable) {
-              status = "Booked";
-            }
+                  // Determine status
+                  let status = "Not Available";
+                  if (availableStock > 0) {
+                    status = "Available";
+                  } else if (totalReservedQty >= product.StockAvailable) {
+                    status = "Booked";
+                  }
 
-            // Get only essential product details including ProductIcon
-            const essentialProduct = {
-              productId: product.productId,
-              productName: product.productName || product.name,
-              price: product.price,
-              quantity: product.quantity || product.qty,
-              total: product.total,
-              ProductIcon: productDetails?.ProductIcon || null,
-              availableStock,
-              status
-            };
+                  // Get only essential product details including ProductIcon
+                  const essentialProduct = {
+                    productId: product.productId,
+                    productName: product.productName || product.name,
+                    price: product.price,
+                    quantity: product.quantity || product.qty,
+                    total: product.total,
+                    ProductIcon: productDetails?.ProductIcon || null,
+                    availableStock,
+                    status,
+                  };
 
-            return essentialProduct;
-          }));
+                  return essentialProduct;
+                })
+              );
 
-          // Check if the slot has at least one available product
-          const hasAvailableProducts = enrichedProducts.some(
-            (product) => product.status === "Available"
+              // Check if the slot has at least one available product
+              const hasAvailableProducts = enrichedProducts.some(
+                (product) => product.status === "Available"
+              );
+
+              return {
+                ...slot,
+                Products: enrichedProducts,
+                status: hasAvailableProducts ? "Available" : "Not Available",
+              };
+            })
           );
 
           return {
-            ...slot,
-            Products: enrichedProducts,
-            status: hasAvailableProducts ? "Available" : "Not Available",
+            ...quote,
+            slots: enrichedSlots,
           };
         })
-        );
-
-        return {
-          ...quote,
-          slots: enrichedSlots,
-        };
-      })
       );
 
       return res.status(200).json({ quoteData: enrichedQuotations });
@@ -646,7 +651,7 @@ class Quotations {
                 ],
                 slot: slot.slotName,
               });
-              console.log("overlapping invent: ", overlappingReservations)
+              console.log("overlapping invent: ", overlappingReservations);
 
               // const totalAvaiableQty = overlappingReservations.reduce(
               //   (sum, reservation) => sum + reservation.availableQty,
@@ -667,13 +672,15 @@ class Quotations {
               let availableStock = productDetails.ProductStock;
 
               if (overlappingReservations.length > 0) {
-                availableStock = Math.max(productDetails.ProductStock - totalReserved, 0); // Ensure no negative stock
+                availableStock = Math.max(
+                  productDetails.ProductStock - totalReserved,
+                  0
+                ); // Ensure no negative stock
               }
 
               // const stockAvailable = product.stock || 0;
               // const availableStock = stockAvailable - totalReservedQty;
               // const availableStock = productDetails?.ProductStock - totalReservedQty;
-
 
               // let status = "Not Available";
               // if (availableStock > 0) {
@@ -686,7 +693,11 @@ class Quotations {
 
               return {
                 productId: product.productId,
-                productName: product.productName || product.name || productDetails?.name || "Unnamed Product",
+                productName:
+                  product.productName ||
+                  product.name ||
+                  productDetails?.name ||
+                  "Unnamed Product",
                 price: product.price,
                 quantity: product.quantity || product.qty,
                 total: product.total,
@@ -694,6 +705,7 @@ class Quotations {
                 productQuoteDate: product.productQuoteDate,
                 productEndDate: product.productEndDate,
                 productSlot: product.productSlot,
+                Advanceamount: product.Advanceamount,
                 // availableStock: totalAvaiableQty,
                 availableStock,
                 // status,
@@ -730,13 +742,8 @@ class Quotations {
     session.startTransaction();
 
     try {
-      const {
-        enquiryObjectId,
-        enquiryId,
-        Products,
-        GrandTotal,
-        slots,
-      } = req.body;
+      const { enquiryObjectId, enquiryId, Products, GrandTotal, slots } =
+        req.body;
 
       console.log({ enquiryId, Products, GrandTotal, slots });
 
@@ -749,13 +756,17 @@ class Quotations {
       const { quoteDate, endDate } = existingQuotation;
 
       if (!quoteDate || !endDate) {
-        throw new Error("Quotation dates are missing. Cannot proceed with inventory update.");
+        throw new Error(
+          "Quotation dates are missing. Cannot proceed with inventory update."
+        );
       }
 
       if (!Array.isArray(Products)) {
-        return res.status(400).json({ error: "Products must be a valid array" });
+        return res
+          .status(400)
+          .json({ error: "Products must be a valid array" });
       }
-      console.log("before updatedslots")
+      console.log("before updatedslots");
 
       // ✅ 1. Update nested slot products with new qty, price, and total
       const updatedSlots = existingQuotation.slots.map((slot, slotIdx) => {
@@ -772,7 +783,8 @@ class Quotations {
                   ...prod,
                   qty: updatedProduct.qty || prod.qty,
                   price: updatedProduct.price || prod.price,
-                  total: updatedProduct.qty * (updatedProduct.price || prod.price),
+                  total:
+                    updatedProduct.qty * (updatedProduct.price || prod.price),
                 };
               }
 
@@ -783,7 +795,7 @@ class Quotations {
         return slot;
       });
 
-      console.log("updatede slots: ", updatedSlots)
+      console.log("updatede slots: ", updatedSlots);
 
       // 2. Save updated data into quotation
       existingQuotation.slots = updatedSlots;
@@ -797,20 +809,23 @@ class Quotations {
 
         for (const product of slotProducts) {
           const { productId, quantity, StockAvailable, productName } = product;
-          console.log("product: ", product)
+          console.log("product: ", product);
 
           const start = parseDate(quoteDate.trim());
           const end = parseDate(endDate.trim());
 
           const inventory = await InventoryModel.find({ productId });
 
-          const overlappingInventory = inventory.filter(item => {
+          const overlappingInventory = inventory.filter((item) => {
             const inventoryStartDate = parseDate(item.startdate);
             const inventoryEndDate = parseDate(item.enddate);
             return inventoryStartDate <= end && inventoryEndDate >= start;
           });
 
-          console.log(`overlap for prod-> ${productName}: `, overlappingInventory)
+          console.log(
+            `overlap for prod-> ${productName}: `,
+            overlappingInventory
+          );
           let totalAvaiableQty = overlappingInventory.reduce(
             (sum, reservation) => sum + reservation.availableQty,
             0
@@ -818,7 +833,10 @@ class Quotations {
 
           // const availableStock = StockAvailable - totalReservedQty;
           const availableStock = totalAvaiableQty - quantity;
-          console.log(`totalAvaiableQty for prod->${productName}: `, totalAvaiableQty)
+          console.log(
+            `totalAvaiableQty for prod->${productName}: `,
+            totalAvaiableQty
+          );
 
           if (totalAvaiableQty && availableStock < 0) {
             throw new Error(
@@ -846,7 +864,6 @@ class Quotations {
           //     session
           //   }
           // );
-
         }
       }
 
@@ -907,7 +924,8 @@ class Quotations {
       adjustments,
       GrandTotal,
       status,
-      GST, discount
+      GST,
+      discount,
     } = req.body;
     console.log(
       quoteId,
@@ -915,7 +933,8 @@ class Quotations {
       transportcharge,
       adjustments,
       GrandTotal,
-      GST, discount,
+      GST,
+      discount,
       "efirwiu"
     );
     try {
@@ -945,7 +964,6 @@ class Quotations {
       if (discount !== undefined) {
         quotation.discount = discount;
       }
-
 
       if (status !== undefined) {
         if (["pending", "send"].includes(status)) {
@@ -1679,9 +1697,23 @@ class Quotations {
 
   // update quotation
   async updateQuotation1(req, res) {
-    const { quoteId, labourecharge, transportcharge, GrandTotal, adjustments, GST, discount } =
-      req.body;
-    console.log(labourecharge, transportcharge, GrandTotal, adjustments, GST, discount);
+    const {
+      quoteId,
+      labourecharge,
+      transportcharge,
+      GrandTotal,
+      adjustments,
+      GST,
+      discount,
+    } = req.body;
+    console.log(
+      labourecharge,
+      transportcharge,
+      GrandTotal,
+      adjustments,
+      GST,
+      discount
+    );
 
     try {
       // Fetch the quotation by ID
@@ -1810,7 +1842,7 @@ class Quotations {
               quantity: productQuantity,
               price: productPrice,
               total: productQuantity * productPrice,
-              StockAvailable: stockAvailable
+              StockAvailable: stockAvailable,
               // stockAvailable >= productQuantity
               // ? stockAvailable - productQuantity
               // : stockAvailable, // Only subtract if stock is sufficient
@@ -1939,7 +1971,9 @@ class Quotations {
     session.startTransaction();
 
     try {
-      const quotation = await Quotationmodel.findOne({ quoteId: id }).session(session);
+      const quotation = await Quotationmodel.findOne({ quoteId: id }).session(
+        session
+      );
 
       if (!quotation) {
         await session.abortTransaction();
@@ -1950,7 +1984,9 @@ class Quotations {
       if (!Array.isArray(slots) || slots.length === 0) {
         await session.abortTransaction();
         session.endSession();
-        return res.status(400).json({ error: "Slots must be a non-empty array" });
+        return res
+          .status(400)
+          .json({ error: "Slots must be a non-empty array" });
       }
 
       slots.forEach((newSlot) => {
@@ -1988,7 +2024,9 @@ class Quotations {
             isNaN(productPrice) ||
             isNaN(stockAvailable)
           ) {
-            console.error(`Invalid product data: ${JSON.stringify(newProduct)}`);
+            console.error(
+              `Invalid product data: ${JSON.stringify(newProduct)}`
+            );
             return;
           }
 
@@ -2006,7 +2044,9 @@ class Quotations {
               StockAvailable: stockAvailable,
             });
           } else {
-            console.log(`Product ${newProduct.productId} already exists in slot ${newSlot.slotName}, skipping.`);
+            console.log(
+              `Product ${newProduct.productId} already exists in slot ${newSlot.slotName}, skipping.`
+            );
           }
         });
 
@@ -2015,7 +2055,14 @@ class Quotations {
 
       // Final GrandTotal Calculation as per new formula
       const productTotal = quotation.slots.reduce((total, slot) => {
-        return total + slot.Products.reduce((sum, product) => sum + (Number(product.price) * Number(product.quantity) || 0), 0);
+        return (
+          total +
+          slot.Products.reduce(
+            (sum, product) =>
+              sum + (Number(product.price) * Number(product.quantity) || 0),
+            0
+          )
+        );
       }, 0);
 
       const discountPercentage = Number(quotation.discount) || 0;
@@ -2024,7 +2071,8 @@ class Quotations {
 
       const labourCharge = Number(quotation.labourecharge) || 0;
       const transportCharge = Number(quotation.transportcharge) || 0;
-      const subTotal = productTotalAfterDiscount + labourCharge + transportCharge;
+      const subTotal =
+        productTotalAfterDiscount + labourCharge + transportCharge;
 
       const gstRate = Number(quotation.GST) || 0;
       const gstAmount = subTotal * gstRate;
@@ -2063,7 +2111,9 @@ class Quotations {
           const availableStock = StockAvailable - totalReservedQty;
 
           if (availableStock < quantity) {
-            throw new Error(`Insufficient stock for product: ${product.productName} in slot: ${slotName}. Only ${availableStock} available.`);
+            throw new Error(
+              `Insufficient stock for product: ${product.productName} in slot: ${slotName}. Only ${availableStock} available.`
+            );
           }
 
           const existingInventory = await InventoryModel.findOne({
@@ -2103,7 +2153,9 @@ class Quotations {
       await session.abortTransaction();
       session.endSession();
       console.error("Error adding products to slots:", error.message);
-      return res.status(500).json({ error: error.message || "Failed to add products to slots" });
+      return res
+        .status(500)
+        .json({ error: error.message || "Failed to add products to slots" });
     }
   }
 
@@ -2130,7 +2182,9 @@ class Quotations {
       console.log(`error in cancelQuotation `);
       // Abort transaction on error
       console.error("Error cancelling quotation:", error);
-      res.status(500).json({ error: error.message || "Failed to cancel quotation" });
+      res
+        .status(500)
+        .json({ error: error.message || "Failed to cancel quotation" });
     }
   }
   // new code
@@ -2210,7 +2264,7 @@ class Quotations {
   //                   await session.abortTransaction();
   //                   session.endSession();
   //                   return res.status(400).json({
-  //                       error: `❌ Booking Conflict: 
+  //                       error: `❌ Booking Conflict:
   //                       Product "${productData.ProductName}" is overbooked in Slot "${slotName}".
   //                       Available: ${availableStock}, Requested: ${quantity}, Reserved: ${totalReservedQty}.
   //                       🚫 No more bookings allowed for this slot.`

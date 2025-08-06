@@ -11,7 +11,6 @@ const moment = require("moment");
 
 class order {
   async invoiceId(req, res) {
-
     // const latestCustomer = await Enquirymodel.findOne()
     //   .sort({ enquiryId: -1 })
     //   .exec();
@@ -19,24 +18,19 @@ class order {
     // const newEquiry = latestEquiry + 1;
     // const enquiryId = await Counter?.getNextSequence("enquiryId");
 
-
-    const latestOrder = await Order.findOne()
-      .sort({ invoiceId: -1 })
-      .exec();
+    const latestOrder = await Order.findOne().sort({ invoiceId: -1 }).exec();
     const latestInvoiceId = latestOrder ? latestOrder.invoiceId : 0;
 
-    const latestInvoiceNumber = ('RA0') + await Counter?.getNextSequence("invoiceId");
+    const latestInvoiceNumber =
+      "RA0" + (await Counter?.getNextSequence("invoiceId"));
 
     console.log("New Invoice ID:", latestInvoiceNumber);
 
-
-    res.status(200).json({ message: latestInvoiceNumber })
-
-
+    res.status(200).json({ message: latestInvoiceNumber });
   }
 
   async postaddorder(req, res) {
-    console.log("post order")
+    console.log("post order");
     const {
       quoteId,
       userId,
@@ -62,14 +56,11 @@ class order {
     // console.log({ quoteId })
     // console.log(JSON.stringify(slots, null, 2));
 
-
     // Start a new session for the transaction
 
     const session = await mongoose.startSession();
 
-
     console.log("Products: ", JSON.stringify(products, null, 2));
-
 
     try {
       // Begin the transaction
@@ -87,27 +78,30 @@ class order {
         if (isNaN(start.getTime()) || isNaN(end.getTime())) {
           throw new Error("Invalid start date or end date provided.");
         }
-        console.log(" here 1; ",)
+        console.log(" here 1; ");
 
         for (const product of products) {
-          const { productId, quantity, productName } = product;
+          const { productId, quantity, productName, initialAdvamount } =
+            product;
 
           // Validate product fields
           if (!productId || !quantity || quantity <= 0) {
             throw new Error(`Invalid product details for "${productName}".`);
           }
 
-          const inventory = await InventoryModel.find({ productId }).session(session);
+          const inventory = await InventoryModel.find({ productId }).session(
+            session
+          );
 
           // Step 2: Check for overlapping date ranges
-          const overlappingInventory = inventory.filter(item => {
+          const overlappingInventory = inventory.filter((item) => {
             const inventoryStartDate = parseDate(item.startdate);
             const inventoryEndDate = parseDate(item.enddate);
 
             // Check if there's an overlap
             return inventoryStartDate <= end && inventoryEndDate >= start;
           });
-          console.log("overlappingInventory: ", overlappingInventory)
+          console.log("overlappingInventory: ", overlappingInventory);
 
           // Calculate total reserved quantity
           const totalReserved = overlappingInventory.reduce(
@@ -115,13 +109,16 @@ class order {
             0
           );
 
-          const existingInventory = inventory.find(item =>
-            item.productId === productId &&
-            item.startdate === quoteDate &&
-            item.enddate === endDate
+          const existingInventory = inventory.find(
+            (item) =>
+              item.productId === productId &&
+              item.startdate === quoteDate &&
+              item.enddate === endDate
           );
 
-          const findProd = await ProductManagementModel.findById(productId).session(session);
+          const findProd = await ProductManagementModel.findById(
+            productId
+          ).session(session);
 
           // // Fetch product stock if inventory entry does not exist
           // const globalStock = existingInventory
@@ -129,9 +126,21 @@ class order {
           //   : findProd.ProductStock;
 
           // Check stock availability
-          if (Number(findProd.ProductStock) - Number(totalReserved) < Number(quantity)) {
-            console.log("findProd.ProductStock: ", findProd.ProductStock, "Number(totalReserved)  : ", Number(totalReserved), "quanity: ", quantity)
-            throw new Error(`Insufficient stock for "${productName}" on ${quoteDate}.`);
+          if (
+            Number(findProd.ProductStock) - Number(totalReserved) <
+            Number(quantity)
+          ) {
+            console.log(
+              "findProd.ProductStock: ",
+              findProd.ProductStock,
+              "Number(totalReserved)  : ",
+              Number(totalReserved),
+              "quanity: ",
+              quantity
+            );
+            throw new Error(
+              `Insufficient stock for "${productName}" on ${quoteDate}.`
+            );
           }
 
           // Update or create inventory entry
@@ -152,12 +161,10 @@ class order {
         }
       }
 
-      const latestOrder = await Order.findOne()
-        .sort({ invoiceId: -1 })
-        .exec();
+      const latestOrder = await Order.findOne().sort({ invoiceId: -1 }).exec();
       const latestInvoiceId = latestOrder ? latestOrder.invoiceId : 0;
 
-      const invoiceId = ('RA0') + await Counter?.getNextSequence("invoiceId");
+      const invoiceId = "RA0" + (await Counter?.getNextSequence("invoiceId"));
 
       console.log("New Invoice ID:", invoiceId);
 
@@ -165,7 +172,6 @@ class order {
       if (executiveId === "") {
         updatedExecutiveId = null;
       }
-
 
       // Create the order after inventory updates
       const newOrder = new ordermodel({
@@ -191,7 +197,7 @@ class order {
         adjustments,
         products,
       });
-      console.log(" here 2; ",)
+      console.log(" here 2; ");
 
       const savedOrder = await newOrder.save({ session });
 
@@ -201,37 +207,37 @@ class order {
       if (!quotation) {
         throw new Error(`message: Quotation not found`);
       }
-      console.log("found quote: ", quotation)
-      console.log(JSON.stringify(slots, null, 2))
-
-
+      console.log("found quote: ", quotation);
+      console.log(JSON.stringify(slots, null, 2));
 
       // throw new Error("just testing")
 
-
       if (quotation.slots && quotation.slots[0]) {
-        console.log("map product:",)
-        quotation.slots[0].Products = quotation.slots[0]?.Products.map((product) => {
-          console.log("map product:", product)
+        console.log("map product:");
+        quotation.slots[0].Products = quotation.slots[0]?.Products.map(
+          (product) => {
+            console.log("map product:", product);
 
-          // Find the matching product in the order's slot[0].products
-          const matchingProduct = slots[0].products.find(
-            (orderProduct) => String(orderProduct.productId) === String(product.productId)
-          );
+            // Find the matching product in the order's slot[0].products
+            const matchingProduct = slots[0].products.find(
+              (orderProduct) =>
+                String(orderProduct.productId) === String(product.productId)
+            );
 
-          console.log("matching:", matchingProduct)
+            console.log("matching:", matchingProduct);
 
-          if (matchingProduct) {
-            console.log("found match");
-            return {
-              ...product,
-              productQuoteDate: matchingProduct.productQuoteDate,
-              productEndDate: matchingProduct.productEndDate,
-              productSlot: matchingProduct.productSlot,
-            };
+            if (matchingProduct) {
+              console.log("found match");
+              return {
+                ...product,
+                productQuoteDate: matchingProduct.productQuoteDate,
+                productEndDate: matchingProduct.productEndDate,
+                productSlot: matchingProduct.productSlot,
+              };
+            }
+            return product;
           }
-          return product;
-        });
+        );
 
         // Update the status
         quotation.status = "send";
@@ -239,9 +245,11 @@ class order {
         // Save the updated quotation
         await quotation.save({ session });
 
-        console.log("quotation slots prods", quotation.slots[0].Products)
+        console.log("quotation slots prods", quotation.slots[0].Products);
       } else {
-        throw new Error("No products found in the first slot of the quotation.");
+        throw new Error(
+          "No products found in the first slot of the quotation."
+        );
       }
 
       // Commit the transaction if everything is successful
@@ -249,7 +257,7 @@ class order {
       session.endSession(); // End the session
 
       const resultQuotation = await Quotationmodel.findOne({ quoteId });
-      console.log("result q: ", resultQuotation.slots[0].Products)
+      console.log("result q: ", resultQuotation.slots[0].Products);
       res.status(201).json({
         message: "Order created successfully and inventory updated.",
         order: savedOrder,
@@ -324,9 +332,19 @@ class order {
   // }
 
   async updateOrderById(req, res) {
-    console.log("inside updateOrderById")
-    const { id } = req.params
-    const { productId, productName, quantity, quoteDate, endDate, isNewProduct, productQuoteDate, productEndDate, productSlot } = req.body;
+    console.log("inside updateOrderById");
+    const { id } = req.params;
+    const {
+      productId,
+      productName,
+      quantity,
+      quoteDate,
+      endDate,
+      isNewProduct,
+      productQuoteDate,
+      productEndDate,
+      productSlot,
+    } = req.body;
 
     // Start a new session for the transaction
     const session = await mongoose.startSession();
@@ -340,14 +358,25 @@ class order {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).json({
-          message: `Order not found`
+          message: `Order not found`,
         });
       }
-      console.log({ productId, quantity, quoteDate, endDate, isNewProduct, productQuoteDate, productEndDate, productSlot })
-      console.log(`typesof  : `, typeof (quantity))
+      console.log({
+        productId,
+        quantity,
+        quoteDate,
+        endDate,
+        isNewProduct,
+        productQuoteDate,
+        productEndDate,
+        productSlot,
+      });
+      console.log(`typesof  : `, typeof quantity);
 
       // checking the inventories
-      const allInventories = await InventoryModel.find({ productId: productId }).session(session);
+      const allInventories = await InventoryModel.find({
+        productId: productId,
+      }).session(session);
 
       const inventory = await InventoryModel.findOne({
         productId,
@@ -355,16 +384,19 @@ class order {
         enddate: endDate,
       }).session(session);
 
-      console.log("inventories: ", allInventories)
+      console.log("inventories: ", allInventories);
 
-      const overlappingInventory = allInventories.filter(item => {
+      const overlappingInventory = allInventories.filter((item) => {
         // console.log(`parseDate(item.startdate): `, parseDate(item.startdate))
         // console.log(`parseDate(item.enddate): `, parseDate(item.enddate))
         const inventoryStartDate = parseDate(item.startdate);
         const inventoryEndDate = parseDate(item.enddate);
-        return inventoryStartDate <= parseDate(endDate) && inventoryEndDate >= parseDate(quoteDate);
+        return (
+          inventoryStartDate <= parseDate(endDate) &&
+          inventoryEndDate >= parseDate(quoteDate)
+        );
       });
-      console.log("overlappingInventory: ", overlappingInventory)
+      console.log("overlappingInventory: ", overlappingInventory);
 
       const totalReserved = overlappingInventory.reduce(
         (sum, entry) => sum + (entry.reservedQty || 0),
@@ -372,7 +404,7 @@ class order {
       );
 
       const findProd = await ProductManagementModel.findById(productId)
-        .select('ProductStock ProductPrice')
+        .select("ProductStock ProductPrice")
         .lean()
         .session(session);
 
@@ -386,23 +418,23 @@ class order {
       //   throw new Error(`Insufficient stock: Available stock is 0 or less for product ${productId}`);
       // }
 
-      console.log("availableStock: ", availableStock)
-
+      console.log("availableStock: ", availableStock);
 
       if (!inventory) {
-        console.log(`Inventory doesn't exist`)
+        console.log(`Inventory doesn't exist`);
         throw new Error(`Inventory doesn't exist`);
       }
       // console.log("found order: ", order)
       // console.log("slots[0].products: ", order.slots[0].products)
       // console.log({ quantity, inventory })
 
-
       // Update the product's quantity and total in the order's slots[0].products[]
       const slot = order.slots[0]; // Assuming you're working with the first slot
 
       // Find the existing product in the order
-      const orderProduct = order.slots[0].products.find(prod => prod.productId.toString() === productId.toString());
+      const orderProduct = order.slots[0].products.find(
+        (prod) => prod.productId.toString() === productId.toString()
+      );
       if (!orderProduct) {
         throw new Error("Product not found in order");
       }
@@ -413,17 +445,26 @@ class order {
 
       // Update the product's quantity and total
       orderProduct.quantity = quantity;
-      const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
-      orderProduct.total = Number(quantity) * Number(findProd.ProductPrice) * rentalDays;
+      const rentalDays =
+        moment(productEndDate, "DD-MM-YYYY").diff(
+          moment(productQuoteDate, "DD-MM-YYYY"),
+          "days"
+        ) + 1;
+      orderProduct.total =
+        Number(quantity) * Number(findProd.ProductPrice) * rentalDays;
 
       // console.log("after updating products: ", order.slots[0].products)
 
       if (availableStock >= quantityDifference) {
         inventory.reservedQty += quantityDifference;
-        inventory.availableQty = Number(findProd.ProductStock - inventory.reservedQty);
+        inventory.availableQty = Number(
+          findProd.ProductStock - inventory.reservedQty
+        );
         await inventory.save({ session });
       } else {
-        throw new Error("Cannot update: Available Stock is less than desired quantity");
+        throw new Error(
+          "Cannot update: Available Stock is less than desired quantity"
+        );
       }
 
       // // if (product && quantity <= (inventory.reservedQty + product.quantity)) {
@@ -448,29 +489,51 @@ class order {
       let subtotal = 0;
 
       // Calculate subtotal (sum of all products' total)
-      order.slots.forEach(slot => {
+      order.slots.forEach((slot) => {
         slot.products.forEach((prod, index) => {
-          console.log(` ${index} prod: `, prod.total, `typeof `, typeof (prod.total))
+          console.log(
+            ` ${index} prod: `,
+            prod.total,
+            `typeof `,
+            typeof prod.total
+          );
           if (prod.productId.toString() === productId.toString()) {
-            console.log("existing prod: ", prod)
-            const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
-            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            console.log("existing prod: ", prod);
+            const rentalDays =
+              moment(productEndDate, "DD-MM-YYYY").diff(
+                moment(productQuoteDate, "DD-MM-YYYY"),
+                "days"
+              ) + 1;
+            const total =
+              Number(prod.quantity) *
+              Number(findProd.ProductPrice) *
+              rentalDays;
             prod.total = total;
             subtotal += total;
           } else {
             // Use already-stored total
-            console.log("prod total: ", prod.total)
+            console.log("prod total: ", prod.total);
             subtotal += Number(prod.total) || 0;
           }
-
         });
       });
-      console.log({ subtotal })
+      console.log({ subtotal });
 
-      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount } = order
+      const {
+        labourecharge,
+        transportcharge,
+        discount,
+        GST,
+        GrandTotal,
+        refurbishmentAmount,
+      } = order;
       const discountAmt = subtotal * (Number(discount || 0) / 100);
       const totalBeforeCharges = subtotal - discountAmt;
-      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+      const totalAfterCharges =
+        totalBeforeCharges +
+        Number(labourecharge || 0) +
+        Number(transportcharge || 0) +
+        Number(refurbishmentAmount || 0);
 
       // Calculate GST
       const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
@@ -478,7 +541,7 @@ class order {
       // Final Grand Total
       const grandTotal = Math.round(totalAfterCharges + gstAmt);
 
-      console.log({ discountAmt, gstAmt })
+      console.log({ discountAmt, gstAmt });
 
       // Step 9: Update the order's GrandTotal
       order.GrandTotal = grandTotal;
@@ -487,17 +550,26 @@ class order {
       // Save the updated order once at the end
       await order.save({ session });
 
-      console.log({ subtotal, totalBeforeCharges, discountAmt, totalAfterCharges, gstAmt, grandTotal, labourecharge, transportcharge, discount, GST })
-
+      console.log({
+        subtotal,
+        totalBeforeCharges,
+        discountAmt,
+        totalAfterCharges,
+        gstAmt,
+        grandTotal,
+        labourecharge,
+        transportcharge,
+        discount,
+        GST,
+      });
 
       // Commit the transaction if everything is successful
       await session.commitTransaction();
       session.endSession(); // End the session
 
       res.status(200).json({
-        message: "Order updated and inventory updated successfully."
+        message: "Order updated and inventory updated successfully.",
       });
-
     } catch (error) {
       // Abort the transaction if there's an error
       await session.abortTransaction();
@@ -511,14 +583,21 @@ class order {
     }
   }
 
-
   /* get order data, specific prod inventory, check avaialb stats n update accordingly
-  *  
-  */
+   *
+   */
   async updateExistingOrderById(req, res) {
-    console.log("inside updateOrderById")
-    const { id } = req.params
-    const { productId, quantity, quoteDate, endDate, productQuoteDate, productEndDate, productSlot } = req.body;
+    console.log("inside updateOrderById");
+    const { id } = req.params;
+    const {
+      productId,
+      quantity,
+      quoteDate,
+      endDate,
+      productQuoteDate,
+      productEndDate,
+      productSlot,
+    } = req.body;
 
     // Start a new session for the transaction
     const session = await mongoose.startSession();
@@ -532,14 +611,24 @@ class order {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).json({
-          message: `Order not found`
+          message: `Order not found`,
         });
       }
-      console.log({ productId, quantity, quoteDate, endDate, productQuoteDate, productEndDate, productSlot })
-      console.log(`typesof : `, typeof (quantity))
+      console.log({
+        productId,
+        quantity,
+        quoteDate,
+        endDate,
+        productQuoteDate,
+        productEndDate,
+        productSlot,
+      });
+      console.log(`typesof : `, typeof quantity);
 
       // checking the inventories
-      const allInventories = await InventoryModel.find({ productId: productId }).session(session);
+      const allInventories = await InventoryModel.find({
+        productId: productId,
+      }).session(session);
 
       const inventory = await InventoryModel.findOne({
         productId,
@@ -548,19 +637,22 @@ class order {
       }).session(session);
 
       if (!inventory) {
-        console.log(`Inventory doesn't exist`)
+        console.log(`Inventory doesn't exist`);
         // return res.status(400).json({ message: `Inventory doesn't exist` });
         throw new Error(`Inventory doesn't exist`);
       }
 
-      console.log("inventories: ", allInventories)
+      console.log("inventories: ", allInventories);
 
-      const overlappingInventory = allInventories.filter(item => {
+      const overlappingInventory = allInventories.filter((item) => {
         const inventoryStartDate = parseDate(item.startdate);
         const inventoryEndDate = parseDate(item.enddate);
-        return inventoryStartDate <= parseDate(endDate) && inventoryEndDate >= parseDate(quoteDate);
+        return (
+          inventoryStartDate <= parseDate(endDate) &&
+          inventoryEndDate >= parseDate(quoteDate)
+        );
       });
-      console.log("overlappingInventory: ", overlappingInventory)
+      console.log("overlappingInventory: ", overlappingInventory);
 
       const totalReserved = overlappingInventory.reduce(
         (sum, entry) => sum + (entry.reservedQty || 0),
@@ -568,7 +660,7 @@ class order {
       );
 
       const findProd = await ProductManagementModel.findById(productId)
-        .select('ProductStock ProductPrice')
+        .select("ProductStock ProductPrice")
         .lean()
         .session(session);
 
@@ -578,23 +670,27 @@ class order {
         availableStock = Math.max(findProd.ProductStock - totalReserved, 0); // Ensure no negative stock
       }
 
-      console.log("availableStock: ", availableStock)
+      console.log("availableStock: ", availableStock);
 
       // // Step 4: Update the product's quantity and total in the order's slots[0].products[]
       const slot = order.slots[0];
 
       // Find the existing product in the order
-      const orderProduct = order.slots[0].products.find(prod => prod.productId.toString() === productId.toString());
+      const orderProduct = order.slots[0].products.find(
+        (prod) => prod.productId.toString() === productId.toString()
+      );
       if (!orderProduct) {
         throw new Error("Product not found in order");
       }
 
-      const productIds = order.slots[0].products.map(p => p.productId);
+      const productIds = order.slots[0].products.map((p) => p.productId);
       const products = await ProductManagementModel.find({
-        _id: { $in: productIds }
-      }).select('ProductPrice');
+        _id: { $in: productIds },
+      }).select("ProductPrice");
 
-      const priceMap = new Map(products.map(p => [p._id.toString(), p.ProductPrice]));
+      const priceMap = new Map(
+        products.map((p) => [p._id.toString(), p.ProductPrice])
+      );
       console.log(`priceMap: `, priceMap);
 
       // Update the existing product's quantity
@@ -603,46 +699,95 @@ class order {
 
       // Update the product's quantity and total
       orderProduct.quantity = quantity;
-      const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
-      orderProduct.total = Number(quantity) * Number(findProd.ProductPrice) * rentalDays;
+      const rentalDays =
+        moment(productEndDate, "DD-MM-YYYY").diff(
+          moment(productQuoteDate, "DD-MM-YYYY"),
+          "days"
+        ) + 1;
+      orderProduct.total =
+        Number(quantity) * Number(findProd.ProductPrice) * rentalDays;
 
       if (availableStock >= quantityDifference) {
         inventory.reservedQty += quantityDifference;
-        inventory.availableQty = Number(findProd.ProductStock - inventory.reservedQty);
+        inventory.availableQty = Number(
+          findProd.ProductStock - inventory.reservedQty
+        );
         await inventory.save({ session });
       } else {
-        throw new Error("Cannot update: Available Stock is less than desired quantity");
+        throw new Error(
+          "Cannot update: Available Stock is less than desired quantity"
+        );
       }
 
       // Recalculate the grand total
       let subtotal = 0;
 
-      order.slots.forEach(slot => {
+      order.slots.forEach((slot) => {
         slot.products.forEach((prod, index) => {
           if (prod.productId.toString() === productId.toString()) {
-            console.log("existing prod: ", prod)
-            const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
-            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            console.log("existing prod: ", prod);
+            const rentalDays =
+              moment(productEndDate, "DD-MM-YYYY").diff(
+                moment(productQuoteDate, "DD-MM-YYYY"),
+                "days"
+              ) + 1;
+            const total =
+              Number(prod.quantity) *
+              Number(findProd.ProductPrice) *
+              rentalDays;
             prod.total = total;
             subtotal += total;
-            console.log(`UPDATED ${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', findProd.ProductPrice, 'prod.quantity: ', prod.quantity)
+            console.log(
+              `UPDATED ${prod.productName} total: `,
+              prod.total,
+              "days: ",
+              rentalDays,
+              "ProductPrice: ",
+              findProd.ProductPrice,
+              "prod.quantity: ",
+              prod.quantity
+            );
           } else {
             // Use already-stored total
             const price = priceMap.get(prod.productId.toString());
-            const rentalDays = moment(prod.productEndDate, "DD-MM-YYYY").diff(moment(prod.productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+            const rentalDays =
+              moment(prod.productEndDate, "DD-MM-YYYY").diff(
+                moment(prod.productQuoteDate, "DD-MM-YYYY"),
+                "days"
+              ) + 1;
             const total = Number(prod.quantity) * Number(price) * rentalDays;
             prod.total = total;
             subtotal += total;
-            console.log(`${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', price, 'prod.quantity: ', prod.quantity)
+            console.log(
+              `${prod.productName} total: `,
+              prod.total,
+              "days: ",
+              rentalDays,
+              "ProductPrice: ",
+              price,
+              "prod.quantity: ",
+              prod.quantity
+            );
           }
         });
       });
-      console.log({ subtotal })
+      console.log({ subtotal });
 
-      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount } = order
+      const {
+        labourecharge,
+        transportcharge,
+        discount,
+        GST,
+        GrandTotal,
+        refurbishmentAmount,
+      } = order;
       const discountAmt = subtotal * (Number(discount || 0) / 100);
       const totalBeforeCharges = subtotal - discountAmt;
-      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+      const totalAfterCharges =
+        totalBeforeCharges +
+        Number(labourecharge || 0) +
+        Number(transportcharge || 0) +
+        Number(refurbishmentAmount || 0);
 
       // Calculate GST
       const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
@@ -650,7 +795,7 @@ class order {
       // Final Grand Total
       const grandTotal = Math.round(totalAfterCharges + gstAmt);
 
-      console.log({ discountAmt, gstAmt })
+      console.log({ discountAmt, gstAmt });
 
       // Step 9: Update the order's GrandTotal
       order.GrandTotal = grandTotal;
@@ -658,16 +803,25 @@ class order {
 
       await order.save({ session });
 
-      console.log({ subtotal, totalBeforeCharges, discountAmt, totalAfterCharges, gstAmt, grandTotal, labourecharge, transportcharge, discount, GST })
-
+      console.log({
+        subtotal,
+        totalBeforeCharges,
+        discountAmt,
+        totalAfterCharges,
+        gstAmt,
+        grandTotal,
+        labourecharge,
+        transportcharge,
+        discount,
+        GST,
+      });
 
       await session.commitTransaction();
       session.endSession();
 
       res.status(200).json({
-        message: "Order updated and inventory updated successfully."
+        message: "Order updated and inventory updated successfully.",
       });
-
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -680,19 +834,24 @@ class order {
     }
   }
 
-
-
-
-
-
-  /* get order data, 
+  /* get order data,
    * specific prod inventory exists/not?
    * check available stats n update accordingly
-  */
+   */
   async addNewProductToOrderById(req, res) {
-    console.log("inside updateOrderById")
-    const { id } = req.params
-    const { productId, productName, quantity, quoteDate, endDate, isNewProduct, productQuoteDate, productEndDate, productSlot } = req.body;
+    console.log("inside updateOrderById");
+    const { id } = req.params;
+    const {
+      productId,
+      productName,
+      quantity,
+      quoteDate,
+      endDate,
+      isNewProduct,
+      productQuoteDate,
+      productEndDate,
+      productSlot,
+    } = req.body;
 
     const session = await mongoose.startSession();
 
@@ -705,14 +864,25 @@ class order {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).json({
-          message: `Order not found`
+          message: `Order not found`,
         });
       }
-      console.log({ productId, quantity, quoteDate, endDate, isNewProduct, productQuoteDate, productEndDate, productSlot })
-      console.log(`typesof :`, typeof (quantity))
+      console.log({
+        productId,
+        quantity,
+        quoteDate,
+        endDate,
+        isNewProduct,
+        productQuoteDate,
+        productEndDate,
+        productSlot,
+      });
+      console.log(`typesof :`, typeof quantity);
 
       // checking the inventories
-      const allInventories = await InventoryModel.find({ productId }).session(session);
+      const allInventories = await InventoryModel.find({ productId }).session(
+        session
+      );
 
       const inventory = await InventoryModel.findOne({
         productId,
@@ -720,14 +890,17 @@ class order {
         enddate: endDate,
       }).session(session);
 
-      console.log("inventories: ", allInventories)
+      console.log("inventories: ", allInventories);
 
-      const overlappingInventory = allInventories.filter(item => {
+      const overlappingInventory = allInventories.filter((item) => {
         const inventoryStartDate = parseDate(item.startdate);
         const inventoryEndDate = parseDate(item.enddate);
-        return inventoryStartDate <= parseDate(endDate) && inventoryEndDate >= parseDate(quoteDate);
+        return (
+          inventoryStartDate <= parseDate(endDate) &&
+          inventoryEndDate >= parseDate(quoteDate)
+        );
       });
-      console.log("overlappingInventory: ", overlappingInventory)
+      console.log("overlappingInventory: ", overlappingInventory);
 
       const totalReserved = overlappingInventory.reduce(
         (sum, entry) => sum + (entry.reservedQty || 0),
@@ -735,7 +908,7 @@ class order {
       );
 
       const findProd = await ProductManagementModel.findById(productId)
-        .select('ProductStock ProductPrice')
+        .select("ProductStock ProductPrice")
         .lean()
         .session(session);
 
@@ -745,10 +918,14 @@ class order {
         availableStock = Math.max(findProd.ProductStock - totalReserved, 0);
       }
 
-      console.log("availableStock: ", availableStock)
+      console.log("availableStock: ", availableStock);
 
       const slot = order.slots[0];
-      const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+      const rentalDays =
+        moment(productEndDate, "DD-MM-YYYY").diff(
+          moment(productQuoteDate, "DD-MM-YYYY"),
+          "days"
+        ) + 1;
 
       if (availableStock >= quantity) {
         if (!inventory) {
@@ -758,17 +935,21 @@ class order {
             reservedQty: quantity,
             availableQty: Number(findProd.ProductStock - quantity),
             startdate: quoteDate,
-            enddate: endDate
+            enddate: endDate,
           });
           await newInventory.save({ session });
         } else {
           // Update existing inventory
           inventory.reservedQty += quantity;
-          inventory.availableQty = Number(findProd.ProductStock - inventory.reservedQty);
+          inventory.availableQty = Number(
+            findProd.ProductStock - inventory.reservedQty
+          );
           await inventory.save({ session });
         }
       } else {
-        throw new Error("Cannot update: Available Stock is less than desired quantity");
+        throw new Error(
+          "Cannot update: Available Stock is less than desired quantity"
+        );
       }
 
       const addProduct = {
@@ -777,55 +958,98 @@ class order {
         quantity,
         // price: Number(unitPrice), // Price fetched from findProd
         total: Number(quantity) * findProd.ProductPrice, // Initial total
-        productQuoteDate, productEndDate, productSlot
+        productQuoteDate,
+        productEndDate,
+        productSlot,
       };
       slot.products.push(addProduct);
 
-      const productIds = order.slots[0].products.map(p => p.productId);
+      const productIds = order.slots[0].products.map((p) => p.productId);
       const products = await ProductManagementModel.find({
-        _id: { $in: productIds }
+        _id: { $in: productIds },
       })
-        .select('ProductPrice')
+        .select("ProductPrice")
         .lean();
 
-      const priceMap = new Map(products.map(p => [p._id.toString(), p.ProductPrice]));
+      const priceMap = new Map(
+        products.map((p) => [p._id.toString(), p.ProductPrice])
+      );
       console.log(`priceMap: `, priceMap);
-
 
       let subtotal = 0;
 
-      order.slots.forEach(slot => {
+      order.slots.forEach((slot) => {
         slot.products.forEach((prod, index) => {
           if (prod.productId.toString() === productId.toString()) {
             // console.log("existing prod: ", prod)
-            const rentalDays = moment(productEndDate, "DD-MM-YYYY").diff(moment(productQuoteDate, "DD-MM-YYYY"), "days") + 1;
-            const total = Number(prod.quantity) * Number(findProd.ProductPrice) * rentalDays;
+            const rentalDays =
+              moment(productEndDate, "DD-MM-YYYY").diff(
+                moment(productQuoteDate, "DD-MM-YYYY"),
+                "days"
+              ) + 1;
+            const total =
+              Number(prod.quantity) *
+              Number(findProd.ProductPrice) *
+              rentalDays;
             prod.total = total;
             subtotal += total;
-            console.log(`ADDED ${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', findProd.ProductPrice, 'prod.quantity: ', prod.quantity)
+            console.log(
+              `ADDED ${prod.productName} total: `,
+              prod.total,
+              "days: ",
+              rentalDays,
+              "ProductPrice: ",
+              findProd.ProductPrice,
+              "prod.quantity: ",
+              prod.quantity
+            );
           } else {
             // Use already-stored total
             const price = priceMap.get(prod.productId.toString());
-            const rentalDays = moment(prod.productEndDate, "DD-MM-YYYY").diff(moment(prod.productQuoteDate, "DD-MM-YYYY"), "days") + 1;
+            const rentalDays =
+              moment(prod.productEndDate, "DD-MM-YYYY").diff(
+                moment(prod.productQuoteDate, "DD-MM-YYYY"),
+                "days"
+              ) + 1;
             const total = Number(prod.quantity) * Number(price) * rentalDays;
             prod.total = total;
             subtotal += total;
-            console.log(`${prod.productName} total: `, prod.total, "days: ", rentalDays, 'ProductPrice: ', price, 'prod.quantity: ', prod.quantity)
+            console.log(
+              `${prod.productName} total: `,
+              prod.total,
+              "days: ",
+              rentalDays,
+              "ProductPrice: ",
+              price,
+              "prod.quantity: ",
+              prod.quantity
+            );
           }
         });
       });
-      console.log({ subtotal })
+      console.log({ subtotal });
 
-      const { labourecharge, transportcharge, discount, GST, GrandTotal, refurbishmentAmount } = order
+      const {
+        labourecharge,
+        transportcharge,
+        discount,
+        GST,
+        GrandTotal,
+        refurbishmentAmount,
+      } = order;
       const discountAmt = subtotal * (Number(discount || 0) / 100);
       const totalBeforeCharges = subtotal - discountAmt;
-      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+      const totalAfterCharges =
+        totalBeforeCharges +
+        Number(labourecharge || 0) +
+        Number(transportcharge || 0) +
+        Number(refurbishmentAmount || 0);
 
       const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
 
       const grandTotal = Math.round(totalAfterCharges + gstAmt);
 
-      console.log({ discountAmt, gstAmt })
+      console.log({ discountAmt, gstAmt });
 
       // Step 9: Update the order's GrandTotal
       order.GrandTotal = grandTotal;
@@ -833,16 +1057,25 @@ class order {
 
       await order.save({ session });
 
-      console.log({ subtotal, totalBeforeCharges, discountAmt, totalAfterCharges, gstAmt, grandTotal, labourecharge, transportcharge, discount, GST })
-
+      console.log({
+        subtotal,
+        totalBeforeCharges,
+        discountAmt,
+        totalAfterCharges,
+        gstAmt,
+        grandTotal,
+        labourecharge,
+        transportcharge,
+        discount,
+        GST,
+      });
 
       await session.commitTransaction();
       session.endSession();
 
       res.status(200).json({
-        message: "Order updated and inventory updated successfully."
+        message: "Order updated and inventory updated successfully.",
       });
-
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -855,16 +1088,11 @@ class order {
     }
   }
 
-
-
-
-
-
   async updateOrderFields(req, res) {
     const { orderId, roundOff } = req.body;
     console.log({ orderId, roundOff });
 
-    if (typeof roundOff !== 'number' || isNaN(roundOff)) {
+    if (typeof roundOff !== "number" || isNaN(roundOff)) {
       return res.status(400).json({
         message: "Round off must be a valid number",
       });
@@ -876,12 +1104,10 @@ class order {
       { new: true }
     );
 
-
     res.status(200).json({
       message: "Order updated successfully.",
       updatedOrder,
     });
-
   }
 
   // // Fetch the current available stock of the product
@@ -938,18 +1164,20 @@ class order {
         // Validate date range
         if (isNaN(start.getTime()) || isNaN(end.getTime())) {
           return res.status(400).json({
-            message: "Invalid start date or end date provided."
+            message: "Invalid start date or end date provided.",
           });
         }
 
         for (const product of products) {
           const { productId, quantity, productName } = product;
-          console.log("product: ", product)
+          console.log("product: ", product);
 
           // Validate product fields
           if (!productId || !quantity || quantity <= 0) {
             return res.status(400).json({
-              message: `Invalid product details for "${productName, quoteDate, endDate}".`,
+              message: `Invalid product details for "${
+                (productName, quoteDate, endDate)
+              }".`,
             });
           }
 
@@ -971,7 +1199,7 @@ class order {
           const existingInventory = await InventoryModel.find({
             productId,
             startdate: quoteDate,
-            enddate: endDate
+            enddate: endDate,
           });
           if (existingInventory) {
             return res.status(400).json({
@@ -980,7 +1208,7 @@ class order {
           }
 
           // Fetch product stock if inventory entry does not exist
-          const globalStock = existingInventory.availableQty
+          const globalStock = existingInventory.availableQty;
 
           // Check stock availability
           if (globalStock < quantity) {
@@ -989,21 +1217,20 @@ class order {
             });
           }
 
-          // Update or create inventory entry          
+          // Update or create inventory entry
           existingInventory.reservedQty += quantity;
           existingInventory.availableQty -= quantity;
           await existingInventory.save();
         }
       }
 
-      updatedOrder.products = [...updatedOrder.products, ...products]
+      updatedOrder.products = [...updatedOrder.products, ...products];
       updatedOrder.GrandTotal = GrandTotal;
       updatedOrder.GST = GST;
       updatedOrder.discount = discount;
       updatedOrder.adjustments = adjustments;
       updatedOrder.labourecharge = labourecharge;
       updatedOrder.transportcharge = transportcharge;
-
 
       await updatedOrder.save();
 
@@ -1073,34 +1300,37 @@ class order {
     console.log(`clientId: `, id);
 
     try {
-      console.time('myOrders')
+      console.time("myOrders");
       // const data = await ordermodel.find({ clientId }).sort({ _id: -1 }).lean();
       // const total = await ordermodel.countDocuments({ clientId }).lean();
 
       const aggregationPipeline = [
         { $match: { clientId: objClientId } }, // Match the documents based on `clientId`
-        { $sort: { createdAt: -1 } }, {    // Sort the documents by `_id` in descending order
+        { $sort: { createdAt: -1 } },
+        {
+          // Sort the documents by `_id` in descending order
           $lookup: {
-            from: "products",  // The collection to lookup (products)
-            localField: "slots.products.productId",  // Local field to match with foreign field in Product collection
-            foreignField: "_id",  // Field in Product collection that we match against
-            as: "productDetails"  // Name of the field where product details will be stored
+            from: "products", // The collection to lookup (products)
+            localField: "slots.products.productId", // Local field to match with foreign field in Product collection
+            foreignField: "_id", // Field in Product collection that we match against
+            as: "productDetails", // Name of the field where product details will be stored
           },
-        }, {
+        },
+        {
           $facet: {
-            total: [{ $count: "totalCount" }],   // Get the total count of documents
-            data: [{ $skip: 0 }] // You can change the skip/limit based on your pagination
-          }
-        }
+            total: [{ $count: "totalCount" }], // Get the total count of documents
+            data: [{ $skip: 0 }], // You can change the skip/limit based on your pagination
+          },
+        },
       ];
 
       const result = await ordermodel.aggregate(aggregationPipeline);
       console.log(`result: `, result);
 
-      const data = result[0].data;  // The documents you wanted to fetch
-      const total = result[0].total[0]?.totalCount || 0;  // The total count
+      const data = result[0].data; // The documents you wanted to fetch
+      const total = result[0].total[0]?.totalCount || 0; // The total count
 
-      console.timeEnd('myOrders')
+      console.timeEnd("myOrders");
       if (data) {
         return res.status(200).json({ total, orderData: data });
       } else {
@@ -1117,20 +1347,20 @@ class order {
     console.log(`clientId: `, clientId);
 
     try {
-      console.time('myOrders')
+      console.time("myOrders");
       // const data = await ordermodel.find({ clientId }).sort({ _id: -1 }).lean();
       // const total = await ordermodel.countDocuments({ clientId }).lean();
 
       const aggregationPipeline = [
         { $match: { clientId: objClientId } }, // Match the documents based on `clientId`
-        { $sort: { _id: -1 } },    // Sort the documents by `_id` in descending order
+        { $sort: { _id: -1 } }, // Sort the documents by `_id` in descending order
         {
           $lookup: {
-            from: "products",  // The collection to lookup (products)
-            localField: "slots.products.productId",  // Local field to match with foreign field in Product collection
-            foreignField: "_id",  // Field in Product collection that we match against
-            as: "productDetails"  // Name of the field where product details will be stored
-          }
+            from: "products", // The collection to lookup (products)
+            localField: "slots.products.productId", // Local field to match with foreign field in Product collection
+            foreignField: "_id", // Field in Product collection that we match against
+            as: "productDetails", // Name of the field where product details will be stored
+          },
           // $addFields: {
           //   products: {
           //     $map: {
@@ -1161,20 +1391,20 @@ class order {
         },
         {
           $facet: {
-            total: [{ $count: "totalCount" }],   // Get the total count of documents
-            data: [{ $skip: 0 },] // You can change the skip/limit based on your pagination
-          }
-        }
+            total: [{ $count: "totalCount" }], // Get the total count of documents
+            data: [{ $skip: 0 }], // You can change the skip/limit based on your pagination
+          },
+        },
       ];
 
       const result = await ordermodel.aggregate(aggregationPipeline);
       // console.log(`result: `, result);
       // console.log(`result: `, JSON.stringify(result, null, 2));
 
-      const data = result[0].data;  // The documents you wanted to fetch
-      const total = result[0].total[0]?.totalCount || 0;  // The total count
+      const data = result[0].data; // The documents you wanted to fetch
+      const total = result[0].total[0]?.totalCount || 0; // The total count
 
-      console.timeEnd('myOrders')
+      console.timeEnd("myOrders");
       if (data) {
         return res.json({ total, orderData: data });
       } else {
@@ -1187,7 +1417,7 @@ class order {
 
   async getOrderById(req, res) {
     const { id } = req.params; // Get the order ID from the route params
-    console.log("id: ", id)
+    console.log("id: ", id);
 
     try {
       // // Find the order by its ID
@@ -1195,54 +1425,59 @@ class order {
       //   .populate('clientId') // Optionally, populate related fields if needed (e.g., client details)
       //   .populate('products.productId') // Optionally, populate product details if needed
       //   .exec();
-      const order = await Order.findById(id).lean()
+      const order = await Order.findById(id).lean();
 
       // If no order found, return a 404 response
       if (!order) {
-        return res.status(404).json({ message: 'Order not found.' });
+        return res.status(404).json({ message: "Order not found." });
       }
 
-      const payments = await payment.find({ quotationId: order.quoteId }).lean();
+      const payments = await payment
+        .find({ quotationId: order.quoteId })
+        .lean();
 
       // if (order?.slots && order.slots[0]?.products) {
-      const updatedProducts = await Promise.all(order.slots[0].products.map(async (product) => {
-        // Fetch product data once using ProductManagementModel.find and lean to get a plain object
-        const productData = await ProductManagementModel.findById(product.productId)
-          .select('ProductStock ProductPrice ProductIcon')
-          .lean(); // Use lean to get a plain JavaScript object
+      const updatedProducts = await Promise.all(
+        order.slots[0].products.map(async (product) => {
+          // Fetch product data once using ProductManagementModel.find and lean to get a plain object
+          const productData = await ProductManagementModel.findById(
+            product.productId
+          )
+            .select("ProductStock ProductPrice ProductIcon")
+            .lean(); // Use lean to get a plain JavaScript object
 
-        console.log("productData: ", productData); // productData will now be a plain object
+          console.log("productData: ", productData); // productData will now be a plain object
 
-        // If product data is found, inject ProductStock, else return the product as is
-        if (productData) {
-          console.log("adding ProductStock"); // productData will now be a plain object
-          return {
-            ...product,  // Spread the existing product details
-            ProductStock: productData.ProductStock,  // Inject the fetched ProductStock
-            ProductPrice: productData.ProductPrice,
-            ProductIcon: productData.ProductIcon
-          };
-        }
+          // If product data is found, inject ProductStock, else return the product as is
+          if (productData) {
+            console.log("adding ProductStock"); // productData will now be a plain object
+            return {
+              ...product, // Spread the existing product details
+              ProductStock: productData.ProductStock, // Inject the fetched ProductStock
+              ProductPrice: productData.ProductPrice,
+              ProductIcon: productData.ProductIcon,
+            };
+          }
 
-        // If no product data is found, return the product as is
-        return product;
-      }));
+          // If no product data is found, return the product as is
+          return product;
+        })
+      );
 
       // Log the updated products for debugging
       // console.log("updatedProducts: ", updatedProducts);
 
-
       // Update the slot with the updated products
       const updatedSlot = {
-        ...order.slots[0],  // Use the first slot from the order directly
-        products: updatedProducts,  // Add the updated products array to the slot
+        ...order.slots[0], // Use the first slot from the order directly
+        products: updatedProducts, // Add the updated products array to the slot
       };
 
       // Update the order with the updated slot
       const updatedOrder = {
         ...order,
         payments,
-        slots: [updatedSlot],  // Wrap the updated slot in an array again
+        slots: [updatedSlot], // Wrap the updated slot in an array again
       };
 
       // Log the updated products for debugging
@@ -1253,12 +1488,14 @@ class order {
     } catch (error) {
       // Handle errors (e.g., invalid ObjectId format, database issues)
       console.error(error);
-      return res.status(500).json({ message: 'Internal server error.', error: error.message });
+      return res
+        .status(500)
+        .json({ message: "Internal server error.", error: error.message });
     }
-  };
+  }
 
   async deleteProductInOrderById(req, res) {
-    const { id } = req.params
+    const { id } = req.params;
     const { productId, quoteDate, endDate } = req.body;
 
     const session = await mongoose.startSession();
@@ -1276,7 +1513,9 @@ class order {
 
       // Step 2: Find the product in the order and remove it
       const slot = order.slots[0]; // Assuming you are dealing with the first slot
-      const productIndex = slot.products.findIndex(prod => prod.productId.toString() === productId);
+      const productIndex = slot.products.findIndex(
+        (prod) => prod.productId.toString() === productId
+      );
       if (productIndex === -1) {
         await session.abortTransaction();
         session.endSession();
@@ -1290,7 +1529,7 @@ class order {
       const inventory = await InventoryModel.findOne({
         productId: removedProduct.productId,
         startdate: quoteDate,
-        enddate: endDate
+        enddate: endDate,
       }).session(session);
 
       if (inventory) {
@@ -1304,20 +1543,30 @@ class order {
 
       // Step 4: Recalculate the order total
       let subtotal = 0;
-      order.slots.forEach(slot => {
-        slot.products.forEach(prod => {
+      order.slots.forEach((slot) => {
+        slot.products.forEach((prod) => {
           subtotal += prod.total; // Add each product's total to the subtotal
         });
       });
 
       // Apply discount, transport, and other charges
-      const { labourecharge, transportcharge, discount, GST, refurbishmentAmount } = order;
+      const {
+        labourecharge,
+        transportcharge,
+        discount,
+        GST,
+        refurbishmentAmount,
+      } = order;
       // subtotal += Number(labourecharge || 0) + Number(transportcharge || 0);
 
       // Apply discount
       const discountAmt = subtotal * (Number(discount || 0) / 100);
       const totalBeforeCharges = subtotal - discountAmt;
-      const totalAfterCharges = totalBeforeCharges + Number(labourecharge || 0) + Number(transportcharge || 0) + Number(refurbishmentAmount || 0);
+      const totalAfterCharges =
+        totalBeforeCharges +
+        Number(labourecharge || 0) +
+        Number(transportcharge || 0) +
+        Number(refurbishmentAmount || 0);
 
       // Calculate GST
       const gstAmt = totalAfterCharges * (Number(GST || 0) / 100);
@@ -1336,14 +1585,19 @@ class order {
       await session.commitTransaction();
       session.endSession();
 
-      res.status(200).json({ message: "Product deleted from order and inventory updated successfully" });
-
+      res.status(200).json({
+        message:
+          "Product deleted from order and inventory updated successfully",
+      });
     } catch (error) {
       // Abort the transaction if there's an error
       await session.abortTransaction();
       session.endSession();
       console.error("Error deleting product:", error);
-      res.status(500).json({ message: "Failed to delete product from order and update inventory", error: error.message });
+      res.status(500).json({
+        message: "Failed to delete product from order and update inventory",
+        error: error.message,
+      });
     }
   }
 
@@ -1944,7 +2198,6 @@ class order {
 
       // console.log("Updated Order with ProductStock:", order.slots[0].products);
 
-
       // Access the first slot (order.slots[0])
       const firstSlot = order.slots[0]; // Referring to the first slot
       const { quoteDate, endDate, products } = firstSlot;
@@ -1954,8 +2207,7 @@ class order {
       for (const product of products) {
         const { productId, quantity, ProductStock } = product;
         // console.log("product : ", product)
-        console.log("quantity: ", quantity, "typeof: ", typeof (quantity))
-
+        console.log("quantity: ", quantity, "typeof: ", typeof quantity);
 
         // Find the inventory entry for the product in this slot
         const inventory = await InventoryModel.findOne({
@@ -1994,14 +2246,13 @@ class order {
       await session.abortTransaction();
 
       return res.status(500).json({
-        error: "Internal server error. Failed to cancel order and update inventory.",
+        error:
+          "Internal server error. Failed to cancel order and update inventory.",
       });
     } finally {
       session.endSession();
     }
   }
-
-
 
   // async cancelOrder(req, res) {
   //   const { orderId } = req.body;

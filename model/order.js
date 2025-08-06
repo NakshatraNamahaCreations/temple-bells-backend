@@ -51,129 +51,132 @@ const SlotSchema = new mongoose.Schema({
         type: String,
         required: true,
       },
+      initialAdvamount: {
+        type: String,
+      },
     },
   ],
 });
 
-const orderSchema = new mongoose.Schema({
-  quoteId: {
-    type: String,
-    require: true,
-  },
-  invoiceId: {
-    type: String,
-    require: true,
-  },
-  clientId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  executiveId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",    
-  },
-  clientName: {
-    type: String,
-    required: true,
-  },
-  clientNo: {
-    type: String,
-    // required: true,
-  },
-  placeaddress: {
-    type: String,
-  },
-  executivename: {
-    type: String,
-    require: true,
-  },
-  // startDate: {
-  //   type: String,
-  //   required: true,
-  // },
-  // endDate: {
-  //   type: String,
-  //   required: true,
-  // },
-  slots: {
-    type: [SlotSchema], // Array of slots with associated products
-    required: true,
-  },
-  products: [
-    {
-      productId: {
-        type: String,
-      },
-      productName: {
-        type: String,
-        ref: "Product",
-        // required: true,
-      },
-      quantity: {
-        type: Number,
-        // required: true,
-      },
-      total: {
-        type: Number,
-        // required: true,
-      },
+const orderSchema = new mongoose.Schema(
+  {
+    quoteId: {
+      type: String,
+      require: true,
     },
-  ],
-  Address: {
-    type: Object,
-    required: true,
+    invoiceId: {
+      type: String,
+      require: true,
+    },
+    clientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    executiveId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    clientName: {
+      type: String,
+      required: true,
+    },
+    clientNo: {
+      type: String,
+      // required: true,
+    },
+    placeaddress: {
+      type: String,
+    },
+    executivename: {
+      type: String,
+      require: true,
+    },
+    // startDate: {
+    //   type: String,
+    //   required: true,
+    // },
+    // endDate: {
+    //   type: String,
+    //   required: true,
+    // },
+    slots: {
+      type: [SlotSchema], // Array of slots with associated products
+      required: true,
+    },
+    products: [
+      {
+        productId: {
+          type: String,
+        },
+        productName: {
+          type: String,
+          ref: "Product",
+          // required: true,
+        },
+        quantity: {
+          type: Number,
+          // required: true,
+        },
+        total: {
+          type: Number,
+          // required: true,
+        },
+      },
+    ],
+    Address: {
+      type: Object,
+      required: true,
+    },
+    GrandTotal: {
+      type: Number,
+      required: true,
+    },
+    roundOff: {
+      type: Number,
+      required: true,
+    },
+    refurbishmentAmount: {
+      type: Number,
+      default: 0,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Cancelled"], // Ensures only valid statuses
+      default: "Pending",
+    },
+    orderStatus: {
+      type: String,
+      enum: ["Confirm", "Approved", "Completed", "cancelled"], // Ensures only valid statuses
+      default: "Confirm",
+    },
+    productrefurbishment: {
+      type: Array,
+    },
+    damagerefurbishment: {
+      type: String,
+    },
+    shippingaddressrefurbishment: {
+      type: String,
+    },
+    expense: {
+      type: Number,
+    },
+    floormanager: {
+      type: String,
+    },
+    labourecharge: { type: Number, default: 0 },
+    transportcharge: { type: Number, default: 0 },
+    discount: {
+      type: Number,
+    },
+    GST: {
+      type: Number,
+    },
+    adjustments: {
+      type: Number,
+    },
   },
-  GrandTotal: {
-    type: Number,
-    required: true,
-  },
-  roundOff: {
-    type: Number,
-    required: true,
-  },
-  refurbishmentAmount: {
-    type: Number,
-    default: 0
-  },
-  paymentStatus: {
-    type: String,
-    enum: ["Pending", "Paid", "Cancelled"], // Ensures only valid statuses
-    default: "Pending",
-  },
-  orderStatus: {
-    type: String,
-    enum: ["Confirm", "Approved", "Completed", "cancelled"], // Ensures only valid statuses
-    default: "Confirm",
-  },
-  productrefurbishment: {
-    type: Array,
-  },
-  damagerefurbishment: {
-    type: String,
-  },
-  shippingaddressrefurbishment: {
-    type: String,
-  },
-  expense: {
-    type: Number,
-  },
-  floormanager: {
-    type: String,
-  },
-  labourecharge: { type: Number, default: 0 },
-  transportcharge: { type: Number, default: 0 },
-  discount: {
-    type: Number,
-  },
-  GST: {
-    type: Number,
-  },
-  adjustments: {
-    type: Number,
-  },
-
-},
   {
     timestamps: true,
   }
@@ -187,7 +190,11 @@ orderSchema.pre("save", function (next) {
       // Convert quoteDate
       if (updatedSlot.quoteDate && !updatedSlot.quoteDateObj) {
         try {
-          updatedSlot.quoteDateObj = parse(updatedSlot.quoteDate, "dd-MM-yyyy", new Date());
+          updatedSlot.quoteDateObj = parse(
+            updatedSlot.quoteDate,
+            "dd-MM-yyyy",
+            new Date()
+          );
         } catch (e) {
           console.error("Invalid quoteDate:", updatedSlot.quoteDate);
         }
@@ -196,7 +203,11 @@ orderSchema.pre("save", function (next) {
       // Convert endDate
       if (updatedSlot.endDate && !updatedSlot.endDateObj) {
         try {
-          updatedSlot.endDateObj = parse(updatedSlot.endDate, "dd-MM-yyyy", new Date());
+          updatedSlot.endDateObj = parse(
+            updatedSlot.endDate,
+            "dd-MM-yyyy",
+            new Date()
+          );
         } catch (e) {
           console.error("Invalid endDate:", updatedSlot.endDate);
         }
@@ -207,7 +218,6 @@ orderSchema.pre("save", function (next) {
   }
   next();
 });
-
 
 // orderSchema.pre("save", function (next) {
 //   if (this.slots && this.slots.length > 0) {
@@ -226,7 +236,6 @@ orderSchema.pre("save", function (next) {
 //   }
 //   next();
 // });
-
 
 const Order = mongoose.model("Order", orderSchema);
 module.exports = Order;

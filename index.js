@@ -8,7 +8,6 @@ const cookieParser = require("cookie-parser");
 const puppeteer = require("puppeteer");
 const path = require("path");
 
-
 mongoose
   .connect(process.env.MONGO_URI, {
     // useNewUrlParser: true,
@@ -20,7 +19,7 @@ mongoose
   .catch((err) => console.log("Database Not connected !!!", err));
 
 //middleware
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(cors());
 app.use(morgan("dev"));
@@ -41,11 +40,12 @@ const inventory = require("./route/inventory");
 const CCAvenue = require("./route/CCAvenue");
 const enquiry = require("./route/enquiry");
 const adminLogin = require("./route/Auth/adminLogin");
-const payment = require('./route/payment')
-const report = require('./route/report')
+const payment = require("./route/payment");
+const report = require("./route/report");
 const user = require("./route/user");
 const clientAuth = require("./route/Auth/clientAuth.js");
 const executive = require("./route/executive");
+const master = require("./route/Auth/Master.js");
 
 app.use("/api", payu);
 app.use("/api", adminLogin);
@@ -66,6 +66,7 @@ app.use("/api/payment", CCAvenue);
 app.use("/api/Enquiry", enquiry);
 app.use("/api/payment", payment);
 app.use("/api/report", report);
+app.use("/api/master", master);
 
 const PORT = process.env.PORT || 8000;
 

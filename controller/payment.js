@@ -4,9 +4,25 @@ const Quotationmodel = require("../model/quotations");
 // Controller to create a new payment
 exports.createPayment = async (req, res) => {
   try {
-    const { quotationId, totalAmount, advancedAmount, paymentMode, status, paymentRemarks, comment } = req.body;
-    console.log(quotationId, totalAmount, advancedAmount, paymentMode, paymentRemarks, comment)
-
+    const {
+      quotationId,
+      totalAmount,
+      advancedAmount,
+      paymentMode,
+      status,
+      paymentRemarks,
+      comment,
+      initialadvamount,
+    } = req.body;
+    console.log(
+      quotationId,
+      totalAmount,
+      advancedAmount,
+      paymentMode,
+      paymentRemarks,
+      comment,
+      initialadvamount
+    );
 
     // Create a new payment document
     const payment = new Payment({
@@ -16,14 +32,17 @@ exports.createPayment = async (req, res) => {
       paymentMode,
       status,
       paymentRemarks,
-      comment
+      comment,
+      initialadvamount,
     });
 
     // Save the payment to the database
     const savedPayment = await payment.save();
     res.status(200).json({ message: "Successfully", savedPayment });
   } catch (error) {
-    res.status(500).json({ message: "Error creating payment", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error creating payment", error: error.message });
   }
 };
 // Get all payments
@@ -37,8 +56,8 @@ exports.getAllPayments = async (req, res) => {
           from: "quotations",
           localField: "quotationId",
           foreignField: "quoteId",
-          as: "quotation"
-        }
+          as: "quotation",
+        },
       },
       { $unwind: { path: "$quotation", preserveNullAndEmptyArrays: true } },
       {
@@ -50,23 +69,24 @@ exports.getAllPayments = async (req, res) => {
         //   companyName: "$quotation.companyName"
         // }
         $addFields: {
-          companyName: "$quotation.clientName"
+          companyName: "$quotation.clientName",
         },
       },
       {
         $project: {
-          quotation: 0
-        }
+          quotation: 0,
+        },
       },
-      { $sort: { createdAt: -1 } }
+      { $sort: { createdAt: -1 } },
     ]);
-
 
     console.log("payments", payments.slice(0, 3));
     res.status(200).json(payments);
   } catch (error) {
     console.error("Something went wrong", error);
-    res.status(500).json({ message: "Error fetching payments", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching payments", error: error.message });
   }
 };
 
@@ -82,7 +102,9 @@ exports.getPaymentById = async (req, res) => {
 
     res.status(200).json(payment);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching payment", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching payment", error: error.message });
   }
 };
 
@@ -98,9 +120,12 @@ exports.deletePayment = async (req, res) => {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    res.status(200).json({ message: "Payment deleted successfully", deletedPayment });
+    res
+      .status(200)
+      .json({ message: "Payment deleted successfully", deletedPayment });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting payment", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting payment", error: error.message });
   }
 };
-
